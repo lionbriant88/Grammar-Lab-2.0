@@ -29,3 +29,15 @@ out/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+service.log
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+*.whl
