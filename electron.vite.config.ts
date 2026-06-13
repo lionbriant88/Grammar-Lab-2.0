@@ -5,6 +5,10 @@ import path from 'path';
 export default defineConfig({
   main: {
     plugins: [react()],
+    define: {
+      // electron-vite 通过此环境变量把 dev server URL 传给主进程
+      'process.env.VITE_DEV_SERVER_URL': JSON.stringify(process.env.VITE_DEV_SERVER_URL)
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

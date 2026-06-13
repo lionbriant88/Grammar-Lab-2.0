@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import MainLayout from './components/layout/MainLayout';
 import TimelineScene from './components/timeline/TimelineScene';
 import AnatomyScene from './components/anatomy/AnatomyScene';
 import ExpandScene from './components/expand/ExpandScene';
 import type { SceneType } from './types';
+import { useAppState } from './state/appState';
 
 function App() {
   const [activeScene, setActiveScene] = useState<SceneType>('timeline');
   const [darkMode, setDarkMode] = useState(false);
-  const [inputText, setInputText] = useState('The book that I bought yesterday is very interesting.');
+  const [inputText, setInputText] = useState('I usually get up at seven every morning.');
+  const [state, actions] = useAppState();
 
   // 暗黑模式切换
   useEffect(() => {
@@ -19,22 +21,21 @@ function App() {
     }
   }, [darkMode]);
 
+  const handleAnalyze = () => {
+    actions.analyzeSentence(inputText);
+  };
+
   const renderScene = () => {
     switch (activeScene) {
       case 'timeline':
-        return <TimelineScene />;
+        return <TimelineScene analysis={state.currentAnalysis} darkMode={darkMode} />;
       case 'anatomy':
-        return <AnatomyScene />;
+        return <AnatomyScene analysis={state.currentAnalysis} />;
       case 'expand':
-        return <ExpandScene />;
+        return <ExpandScene analysis={state.currentAnalysis} />;
       default:
-        return <TimelineScene />;
+        return <TimelineScene analysis={state.currentAnalysis} darkMode={darkMode} />;
     }
-  };
-
-  const handleAnalyze = () => {
-    console.log('Analyzing sentence:', inputText);
-    // TODO: 实现分析逻辑
   };
 
   return (
@@ -46,7 +47,10 @@ function App() {
       onDarkModeToggle={() => setDarkMode(!darkMode)}
       onInputChange={setInputText}
       onAnalyze={handleAnalyze}
-      onClear={() => setInputText('')}
+      onClear={() => {
+        setInputText('');
+        actions.clearAnalysis();
+      }}
     >
       {renderScene()}
     </MainLayout>

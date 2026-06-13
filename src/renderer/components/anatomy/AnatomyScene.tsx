@@ -1,6 +1,12 @@
-import React from 'react';
+import type { SentenceAnalysis } from '../../types';
 
-export default function AnatomyScene() {
+interface AnatomySceneProps {
+  analysis: SentenceAnalysis | null;
+}
+
+export default function AnatomyScene({ analysis }: AnatomySceneProps) {
+  // analysis 预留用于后续句剖析功能
+  void analysis; // 标记为有意使用
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="text-center py-20 text-slate-400">

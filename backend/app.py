@@ -13,6 +13,11 @@ from grammar_engine.models import (
     AnalyzeResponse,
     RewriteRequest,
     RewriteResponse,
+    VerbNode,
+    TimeAdverbial,
+    TimelineNode,
+    TimelineData,
+    AnalysisSummary,
 )
 from grammar_engine.nlp_loader import nlp_loader
 
@@ -90,28 +95,28 @@ async def analyze_tense(request: AnalyzeRequest):
     """Analyze tenses in a sentence"""
     if not model_loaded:
         raise HTTPException(status_code=503, detail="Model not loaded")
-    
-    from grammar_engine.models import (
-        VerbNode, SupportedTense, TimeZone, Aspect,
-        TimeAdverbial, TimelineNode, TimelineData, AnalysisSummary
-    )
-    
+
+    from grammar_engine.tense_analyzer import analyze as tense_analyze
+
+    result = tense_analyze(request.sentence)
+
     return AnalyzeResponse(
-        sentence=request.sentence,
-        verbs=[],
-        time_adverbials=[],
+        sentence=result["sentence"],
+        verbs=[VerbNode(**v) for v in result["verbs"]],
+        time_adverbials=[TimeAdverbial(**a) for a in result["time_adverbials"]],
         timeline=TimelineData(
-            nodes=[],
-            past_zone=(0.0, 0.33),
-            present_zone=(0.33, 0.67),
-            future_zone=(0.67, 1.0),
+            nodes=[TimelineNode(**n) for n in result["timeline"]["nodes"]],
+            past_zone=result["timeline"]["past_zone"],
+            present_zone=result["timeline"]["present_zone"],
+            future_zone=result["timeline"]["future_zone"],
         ),
         summary=AnalysisSummary(
-            verb_count=0,
-            supported_verb_count=0,
-            primary_tense="unknown",
+            verb_count=result["summary"]["verb_count"],
+            supported_verb_count=result["summary"]["supported_verb_count"],
+            primary_tense=result["summary"]["primary_tense"],
+            warnings=result["summary"].get("warnings", []),
         ),
-        warnings=["Analysis feature not implemented yet"],
+        warnings=[],
     )
 
 

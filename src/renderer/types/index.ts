@@ -56,6 +56,88 @@ export interface TenseAnalysis {
   present: string;
   summary: string;
   detailList: TenseDetail[];
+  // 后端响应字段
+  backend?: {
+    sentence: string;
+    verbs: BackendVerb[];
+    timeAdverbials: BackendTimeAdverbial[];
+    timeline: {
+      nodes: TimelineNode[];
+      pastZone: [number, number];
+      presentZone: [number, number];
+      futureZone: [number, number];
+    };
+    summary: {
+      verbCount: number;
+      supportedVerbCount: number;
+      primaryTense: string;
+      warnings?: string[];
+    };
+  };
+}
+
+export type SupportedTense =
+  | 'simple_present'
+  | 'simple_past'
+  | 'simple_future_will'
+  | 'simple_future_going_to'
+  | 'past_future_would'
+  | 'past_future_going_to'
+  | 'present_progressive'
+  | 'past_progressive'
+  | 'present_perfect'
+  | 'past_perfect';
+
+export type TimeZone =
+  | 'past'
+  | 'present'
+  | 'future'
+  | 'past_to_present'
+  | 'past_future';
+
+export type Aspect = 'simple' | 'progressive' | 'perfect' | 'perfect_progressive';
+
+export type VisualShape = 'point' | 'segment' | 'arrow' | 'extended_segment';
+
+export interface BackendVerb {
+  id: string;
+  surface: string;
+  lemma: string;
+  phrase: string;
+  tense: SupportedTense;
+  time_zone: TimeZone;
+  aspect: Aspect;
+  subject_text: string | null;
+  person: 1 | 2 | 3 | null;
+  number: 'singular' | 'plural' | null;
+  clause_text: string | null;
+  span: [number, number];
+  confidence: number;
+  supported: boolean;
+}
+
+export interface BackendTimeAdverbial {
+  id: string;
+  surface: string;
+  semantic_type:
+    | 'past_point'
+    | 'present_point'
+    | 'future_point'
+    | 'duration'
+    | 'since_start'
+    | 'frequency'
+    | 'reference_clause';
+  time_zone: TimeZone;
+  span: [number, number];
+  confidence: number;
+}
+
+export interface TimelineNode {
+  verb_id: string;
+  label: string;
+  x_position: number;
+  visual_shape: VisualShape;
+  zone: TimeZone;
 }
 
 export interface TenseDetail {

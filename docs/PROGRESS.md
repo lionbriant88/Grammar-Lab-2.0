@@ -1,7 +1,7 @@
 # Grammar Lab 开发进度
 
-> **最后更新:** 2026-06-12
-> **当前阶段:** 阶段 0 - 基础框架 ✅
+> **最后更新:** 2026-06-13
+> **当前阶段:** 阶段 1 - 时间轴分析 ✅（已端到端验证通过）
 
 ---
 
@@ -10,7 +10,7 @@
 | 阶段 | 名称 | 状态 | 完成时间 |
 |------|------|------|----------|
 | 0 | 基础框架搭建 | ✅ 完成 | 2026-06-12 |
-| 1 | 时间轴分析功能 | ⏳ 待开始 | - |
+| 1 | 时间轴分析功能 | ✅ 完成 | 2026-06-13 |
 | 2 | 句剖析分析功能 | ⏳ 待开始 | - |
 | 3 | 句扩展分析功能 | ⏳ 待开始 | - |
 | 4 | AI 模型集成 | ⏳ 待开始 | - |
@@ -102,22 +102,70 @@ npm run build    # 构建生产版本
 
 ---
 
-## ⏭️ 下一步：阶段 1 - 时间轴分析功能
+## ✅ 阶段 1: 时间轴分析功能（已完成）
+
+### 任务清单
+
+- [x] 后端 mock 分析器 (`backend/grammar_engine/tense_analyzer.py`) - 9 种时态识别
+- [x] 预设例句库 (`backend/grammar_engine/preset_sentences.py`) - 9 条覆盖 9 种时态
+- [x] 后端 API 接入 (`backend/app.py`) - `/api/tense/analyze` 调用分析器
+- [x] Electron IPC 真实化 (`src/main/ipc/index.ts`) - HTTP 调用后端
+- [x] 前端类型扩展 (`src/renderer/types/index.ts`) - backend 响应字段
+- [x] 工具函数 (`src/renderer/utils/tenseLabel.ts`, `zoneColor.ts`)
+- [x] 状态管理 (`src/renderer/state/appState.ts`)
+- [x] 时间轴可视化组件 (`TimelineChart.tsx`, `VerbDetailCard.tsx`, `TimeAdverbialList.tsx`)
+- [x] TimelineScene 重写 - 集成所有组件
+- [x] Header 预设扩展 - 9 条时态例句
+- [x] 进度文档更新
+
+### 新增文件
+
+- `backend/grammar_engine/tense_analyzer.py` - 9 种时态识别（规则 + 词表）
+- `backend/grammar_engine/preset_sentences.py` - 9 条预设例句
+- `src/renderer/components/timeline/TimelineChart.tsx` - 时间轴核心组件
+- `src/renderer/components/timeline/VerbDetailCard.tsx` - 节点详情卡
+- `src/renderer/components/timeline/TimeAdverbialList.tsx` - 时间状语条
+- `src/renderer/state/appState.ts` - 应用状态管理
+- `src/renderer/utils/tenseLabel.ts` - 时态标签映射
+- `src/renderer/utils/zoneColor.ts` - 时区配色
+
+### 修改文件
+
+- `backend/app.py` - analyze 端点接入真实分析器
+- `src/main/ipc/index.ts` - IPC 转 HTTP 调用
+- `src/renderer/types/index.ts` - 追加 backend 响应字段
+- `src/renderer/App.tsx` - 接入 IPC + 状态透传
+- `src/renderer/components/timeline/TimelineScene.tsx` - 替换空占位
+- `src/renderer/components/layout/Header.tsx` - 9 条预设
+- `src/renderer/index.css` - 入场动画
+- `docs/PROGRESS.md` - 阶段 1 标记完成
+
+---
+
+## ⏭️ 下一步：阶段 2 - 句剖析分析功能
 
 ### 计划任务
 
-1. **数据模型** - 定义时态分析的数据结构
-2. **本地分析算法** - 实现启发式时态识别
-3. **时间轴组件** - 可视化时态节点
-4. **集成到场景** - 替换空白占位符
-5. **测试和优化** - 验证准确性和性能
+1. **POS 标注** - 实现词性标注（名词/动词/形容词/副词等）
+2. **主从分句** - 识别主句和从句结构
+3. **句法树** - 可视化语法结构树
+4. **集成到场景** - 替换 AnatomyScene 空白占位符
 
 ### 设计要点
 
-- 三个时态节点：过去 (PAST)、现在 (PRESENT)、将来 (FUTURE)
-- 支持多种时态识别：一般现在/过去/将来、现在进行、过去进行等
-- 节点可点击查看详情
-- 支持多动词时态分析
+- 支持常见词性标注：名词、动词、形容词、副词、介词、连词、冠词、代词
+- 主从分句识别：主句、定语从句、状语从句
+- 句法树可视化：树状结构展示语法层级
+
+---
+
+## ⏭️ 下一步：阶段 3 - 句扩展分析功能
+
+### 计划任务
+
+1. **扩展示例** - 核心词 → 修饰语 → 从句的渐进式扩展示例
+2. **分类展示** - 按扩展类型分类（形容词、副词、介词短语、从句）
+3. **集成到场景** - 替换 ExpandScene 空白占位符
 
 ---
 

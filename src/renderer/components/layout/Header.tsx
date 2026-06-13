@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { SceneType } from '../../types';
 
 interface HeaderProps {
@@ -43,8 +43,15 @@ export default function Header({ activeScene, inputText, onInputChange, onAnalyz
   const [showPresetDropdown, setShowPresetDropdown] = useState(false);
 
   const presets = [
-    { sentence: 'The book that I bought yesterday is very interesting.', desc: '包含定语从句' },
-    { sentence: 'Although it was raining, they decided to go for a hike.', desc: '包含让步状语从句' }
+    { sentence: 'I usually get up at seven every morning.', desc: '一般现在时 - 习惯性动作', tense: 'simple_present' },
+    { sentence: 'She visited her grandparents last weekend.', desc: '一般过去时 - 过去发生的动作', tense: 'simple_past' },
+    { sentence: 'They will travel to Japan next month.', desc: '一般将来时 (will) - 将来计划', tense: 'simple_future_will' },
+    { sentence: 'I am going to study medicine in college.', desc: '一般将来时 (be going to) - 将来计划', tense: 'simple_future_going_to' },
+    { sentence: 'Look! The children are playing in the garden.', desc: '现在进行时 - 正在进行的动作', tense: 'present_progressive' },
+    { sentence: 'At ten o\'clock last night, I was reading a book.', desc: '过去进行时 - 过去某时刻正在进行的动作', tense: 'past_progressive' },
+    { sentence: 'He has already finished his homework.', desc: '现在完成时 - 过去动作对现在的影响', tense: 'present_perfect' },
+    { sentence: 'By the time the guests arrived, she had cooked dinner.', desc: '过去完成时 - 过去某时刻之前已完成的动作', tense: 'past_perfect' },
+    { sentence: 'He said he would come to the party the next day.', desc: '过去将来时 (would) - 过去看来将要发生的动作', tense: 'past_future_would' },
   ];
 
   const handleSpeak = () => {
@@ -130,24 +137,24 @@ export default function Header({ activeScene, inputText, onInputChange, onAnalyz
 
         {/* 预设下拉菜单 */}
         {showPresetDropdown && (
-          <div className={`absolute right-0 mt-2 w-96 rounded-2xl border shadow-xl z-20 overflow-hidden ${
+          <div className={`absolute right-0 mt-2 w-[420px] rounded-2xl border shadow-xl z-20 overflow-hidden ${
             darkMode ? 'bg-slate-900 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
           }`}>
             <div className={`p-3 border-b text-[10px] font-bold uppercase tracking-wider ${
               darkMode ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50 border-slate-100 text-slate-400'
             }`}>
-              切换学术级例句
+              九大时态示例句子
             </div>
-            <div className="p-1.5 space-y-1">
+            <div className="max-h-80 overflow-y-auto p-1.5 space-y-1">
               {presets.map((preset, index) => (
                 <button
                   key={index}
                   onClick={() => selectPreset(preset.sentence)}
-                  className={`w-full text-left p-3 text-xs rounded-xl transition-all ${
+                  className={`w-full text-left p-3 rounded-xl transition-all ${
                     darkMode ? 'hover:bg-blue-950/30' : 'hover:bg-blue-50'
                   }`}
                 >
-                  <p className={`font-semibold text-sm ${index === 0 ? 'text-blue-600' : 'text-indigo-600'}`}>
+                  <p className={`font-semibold text-sm ${index < 3 ? 'text-blue-600' : index < 6 ? 'text-indigo-600' : 'text-purple-600'}`}>
                     {preset.sentence}
                   </p>
                   <p className="text-slate-400 mt-1 text-[11px]">{preset.desc}</p>

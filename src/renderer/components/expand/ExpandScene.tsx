@@ -1,6 +1,12 @@
-import React from 'react';
+import type { SentenceAnalysis } from '../../types';
 
-export default function ExpandScene() {
+interface ExpandSceneProps {
+  analysis: SentenceAnalysis | null;
+}
+
+export default function ExpandScene({ analysis }: ExpandSceneProps) {
+  // analysis 预留用于后续句扩展功能
+  void analysis; // 标记为有意使用
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="text-center py-20 text-slate-400">
