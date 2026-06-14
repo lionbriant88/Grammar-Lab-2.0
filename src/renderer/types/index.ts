@@ -1,6 +1,49 @@
 // 功能场景类型
 export type SceneType = 'timeline' | 'anatomy' | 'expand';
 
+// 句剖析:语义块角色
+export type ChunkRole = 'subject' | 'predicate' | 'object' | 'adverbial' | 'clause' | 'punct';
+
+// 句剖析:语义块
+export interface AnatomyChunk {
+  id: string;
+  role: ChunkRole;
+  text: string;
+  label: string;
+  subordinate?: string | null;
+  token_indices: number[];
+}
+
+// 句剖析:分句内成分
+export interface ClauseElement {
+  word: string;
+  label: string;
+  class: ChunkRole;
+}
+
+// 句剖析:主从分句
+export interface AnatomyClause {
+  id: string;
+  kind: 'main' | 'relative' | 'adverbial' | 'object_clause';
+  text: string;
+  label: string;
+  antecedent?: string | null;
+  elements: ClauseElement[];
+}
+
+// 句剖析:后端响应
+export interface AnatomyBackend {
+  sentence: string;
+  chunks: AnatomyChunk[];
+  clauses: AnatomyClause[];
+  summary: {
+    chunk_count: number;
+    clause_count: number;
+    has_subordinate_clause: boolean;
+    warnings: string[];
+  };
+}
+
 // 句子分析数据类型
 export interface SentenceAnalysis {
   sentence: string;
@@ -21,17 +64,15 @@ export interface SentenceAnalysis {
   tenses: TenseAnalysis;
   expansions: ExpansionData;
   aiTeacherInsight: string;
+  // 阶段 2:句剖析后端数据(切到 anatomy 场景时按需拉取)
+  anatomy?: {
+    backend: AnatomyBackend;
+  };
 }
 
 export interface Clause {
   text: string;
   elements: ClauseElement[];
-}
-
-export interface ClauseElement {
-  word: string;
-  label: string;
-  class: string;
 }
 
 export interface SyntaxNode {

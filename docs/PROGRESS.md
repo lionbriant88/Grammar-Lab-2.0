@@ -1,7 +1,7 @@
 # Grammar Lab 开发进度
 
-> **最后更新:** 2026-06-13
-> **当前阶段:** 阶段 1 - 时间轴分析 ✅（已端到端验证通过）
+> **最后更��:** 2026-06-14
+> **当前阶段:** 阶段 2 - 句剖析分析 ✅（后端 + 编译链路验证通过,UI 交互待人工确认）
 
 ---
 
@@ -11,7 +11,7 @@
 |------|------|------|----------|
 | 0 | 基础框架搭建 | ✅ 完成 | 2026-06-12 |
 | 1 | 时间轴分析功能 | ✅ 完成 | 2026-06-13 |
-| 2 | 句剖析分析功能 | ⏳ 待开始 | - |
+| 2 | 句剖析分析功能 | ✅ 完成 | 2026-06-14 |
 | 3 | 句扩展分析功能 | ⏳ 待开始 | - |
 | 4 | AI 模型集成 | ⏳ 待开始 | - |
 
@@ -142,20 +142,60 @@ npm run build    # 构建生产版本
 
 ---
 
-## ⏭️ 下一步：阶段 2 - 句剖析分析功能
+## ✅ 阶段 2: 句剖析分析功能（已完成）
 
-### 计划任务
+### 任务清单
 
-1. **POS 标注** - 实现词性标注（名词/动词/形容词/副词等）
-2. **主从分句** - 识别主句和从句结构
-3. **句法树** - 可视化语法结构树
-4. **集成到场景** - 替换 AnatomyScene 空白占位符
+- [x] 后端 spaCy 分析器 (`backend/grammar_engine/anatomy_analyzer.py`) - 语义块 + 主从分句
+- [x] Pydantic 模型 (`backend/grammar_engine/models.py`) - Chunk/Clause/ClauseElement/AnatomyResponse
+- [x] 后端端点 (`backend/app.py`) - `/api/anatomy/analyze`
+- [x] 前端类型 (`src/renderer/types/index.ts`) - AnatomyBackend/AnatomyChunk/AnatomyClause
+- [x] IPC handler (`src/main/ipc/index.ts`) - `analyze-sentence-anatomy`
+- [x] preload 暴露 (`src/preload/index.ts`) - `analyzeAnatomy`
+- [x] 状态管理 (`src/renderer/state/appState.ts`) - `analyzeAnatomy`(与 tense 数据合并存储)
+- [x] 工具函数 (`src/renderer/utils/roleColor.ts`) - 角色→配色/中文标签
+- [x] 语义块主视图 (`ChunkBlocks.tsx`) - 流式色带 + 编辑态拖拽搬词
+- [x] 编辑工具条 (`EditToolbar.tsx`) - 改角色/撤销/重置/完成
+- [x] 主从分句分解 (`ClauseBreakdown.tsx`) - 主句+从句卡片
+- [x] 场景编排 (`AnatomyScene.tsx`) - 编辑状态机 + 历史栈
+- [x] App.tsx 数据流 - 切到 anatomy 场景自动拉取
 
 ### 设计要点
 
-- 支持常见词性标注：名词、动词、形容词、副词、介词、连词、冠词、代词
-- 主从分句识别：主句、定语从句、状语从句
-- 句法树可视化：树状结构展示语法层级
+- **语义块切割（非逐词词性）**：把句子切成主语块/谓语块/宾语块/状语块/从句块，每块一种颜色（主语=蓝、谓语=绿、宾语=紫、状语=琥珀、从句=粉），横向流式色带展示。
+- **基于 spaCy 依存分析**：用 `en_core_web_sm` 的 dep_/subtree 逐词归类，从句（relcl/advcl/ccomp）独立剥离成块。
+- **手动编辑模式（教师修正）**：spaCy 对复杂句必然出错（如把名词误判为 ROOT），教师可通过拖拽把词搬到正确的色块、或选中整块改角色。仅本会话生效，含撤销栈和重置。
+- **两大模块**：① 语义块色带（主视图，可编辑）② 主从分句分解（只读参考）。
+
+### 新增文件
+
+- `backend/grammar_engine/anatomy_analyzer.py` - spaCy 语义块/分句分析
+- `src/renderer/components/anatomy/ChunkBlocks.tsx` - 语义块色带 + 编辑拖拽
+- `src/renderer/components/anatomy/EditToolbar.tsx` - 编辑工具条
+- `src/renderer/components/anatomy/ClauseBreakdown.tsx` - 分句分解卡片
+- `src/renderer/utils/roleColor.ts` - 角色→配色映射
+
+### 修改文件
+
+- `backend/grammar_engine/models.py` - 追加 anatomy Pydantic 模型
+- `backend/app.py` - `/api/anatomy/analyze` 端点
+- `src/main/ipc/index.ts` - `analyze-sentence-anatomy` handler
+- `src/preload/index.ts` - `analyzeAnatomy` 暴露
+- `src/renderer/state/appState.ts` - `analyzeAnatomy` action + anatomy 字段合并
+- `src/renderer/types/index.ts` - AnatomyBackend 等类型 + SentenceAnalysis.anatomy
+- `src/renderer/components/anatomy/AnatomyScene.tsx` - 重写空占位
+- `src/renderer/App.tsx` - anatomy 数据流 + 场景切换自动拉取
+
+### 验证状态
+
+- ✅ 后端端点 curl 多句通过（简单句、含定语/状语/宾语从句均正确）
+- ✅ TypeScript 编译零错误
+- ✅ electron-vite 构建 main/preload/renderer 全部成功
+- ✅ Vite dev server 解析所有新模块（200）
+- ⏳ Electron 窗口内的拖拽编辑交互待人工确认
+- ✅ 已知局限：spaCy en_core_web_sm 对个别复杂句（如名词+定语从句+动词）会误判 ROOT，由手动编辑模式兜底
+
+---
 
 ---
 

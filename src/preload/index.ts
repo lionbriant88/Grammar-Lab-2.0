@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 // 暴露安全的 API 给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
   analyzeSentence: (sentence: string) => ipcRenderer.invoke('analyze-sentence', sentence),
+  analyzeAnatomy: (sentence: string) => ipcRenderer.invoke('analyze-sentence-anatomy', sentence),
   speakText: (text: string) => ipcRenderer.invoke('speak-text', text),
   copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text),
   onDarkModeChange: (_callback: (isDark: boolean) => void) => {
@@ -12,7 +13,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 // 类型声明
 export interface ElectronAPI {
-  analyzeSentence: (sentence: string) => Promise<{ success: boolean; data?: any }>;
+  analyzeSentence: (sentence: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+  analyzeAnatomy: (sentence: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   speakText: (text: string) => Promise<{ success: boolean }>;
   copyToClipboard: (text: string) => Promise<{ success: boolean }>;
   onDarkModeChange: (callback: (isDark: boolean) => void) => void;

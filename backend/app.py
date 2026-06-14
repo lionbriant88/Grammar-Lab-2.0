@@ -18,6 +18,9 @@ from grammar_engine.models import (
     TimelineNode,
     TimelineData,
     AnalysisSummary,
+    Chunk,
+    Clause,
+    AnatomyResponse,
 )
 from grammar_engine.nlp_loader import nlp_loader
 
@@ -153,6 +156,24 @@ async def rewrite_sentence(request: RewriteRequest):
         changes=[],
         explanation="Rewrite feature not implemented yet",
         warnings=["Rewrite feature not implemented yet"],
+    )
+
+
+@app.post("/api/anatomy/analyze", response_model=AnatomyResponse)
+async def analyze_anatomy(request: AnalyzeRequest):
+    """句剖析分析:语义块 + 主从分句分解(基于 spaCy)"""
+    if not model_loaded:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    from grammar_engine.anatomy_analyzer import analyze as anatomy_analyze
+
+    result = anatomy_analyze(request.sentence)
+
+    return AnatomyResponse(
+        sentence=result["sentence"],
+        chunks=[Chunk(**c) for c in result["chunks"]],
+        clauses=[Clause(**cl) for cl in result["clauses"]],
+        summary=result["summary"],
     )
 
 

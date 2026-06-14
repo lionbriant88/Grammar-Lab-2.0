@@ -152,3 +152,61 @@ class HealthResponse(BaseModel):
     model_loaded: bool
     model_version: Optional[str] = None
     version: str = "0.1.0"
+
+
+# ===================== 句剖析 (Anatomy) 模型 =====================
+
+class ChunkRole(str, Enum):
+    """语义块角色"""
+    SUBJECT = "subject"
+    PREDICATE = "predicate"
+    OBJECT = "object"
+    ADVERBIAL = "adverbial"
+    CLAUSE = "clause"
+    PUNCT = "punct"
+
+
+class Chunk(BaseModel):
+    """语义块"""
+    id: str
+    role: ChunkRole
+    text: str = Field(..., description="该块文本(词组)")
+    label: str = Field(..., description="中文角色标签,如 主语/谓语/宾语")
+    subordinate: Optional[str] = Field(default=None, description="从句类型 relative/adverbial/object_clause,仅从句块非空")
+    token_indices: List[int] = Field(default_factory=list, description="该块覆盖的词索引(供前端编辑搬移)")
+
+
+class ClauseElement(BaseModel):
+    """分句内成分(主语/谓语/宾语/状语 inline 标签)"""
+    word: str
+    label: str = Field(..., description="中文标签,如 主语/谓语")
+    # class 是 Python 关键字倾向,这里用字段别名
+    element_class: str = Field(..., alias="class", description="角色英文 key,对齐 ChunkRole 值")
+
+    model_config = {"populate_by_name": True}
+
+
+class Clause(BaseModel):
+    """主从分句"""
+    id: str
+    kind: Literal["main", "relative", "adverbial", "object_clause"]
+    text: str
+    label: str = Field(..., description="中文标签,如 主句/定语从句")
+    antecedent: Optional[str] = Field(default=None, description="定语从句修饰的先行词文本")
+    elements: List[ClauseElement] = Field(default_factory=list)
+
+
+class AnatomySummary(BaseModel):
+    """句剖析摘要"""
+    chunk_count: int
+    clause_count: int
+    has_subordinate_clause: bool
+    warnings: List[str] = []
+
+
+class AnatomyResponse(BaseModel):
+    """句剖析响应"""
+    sentence: str
+    chunks: List[Chunk]
+    clauses: List[Clause]
+    summary: AnatomySummary

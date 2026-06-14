@@ -21,8 +21,19 @@ function App() {
     }
   }, [darkMode]);
 
+  // 切到句剖析场景且该句尚未分析过句剖析时,自动拉取 anatomy 数据
+  useEffect(() => {
+    if (activeScene === 'anatomy' && state.currentAnalysis && !state.currentAnalysis.anatomy) {
+      actions.analyzeAnatomy(state.currentAnalysis.sentence);
+    }
+  }, [activeScene, state.currentAnalysis, actions]);
+
   const handleAnalyze = () => {
     actions.analyzeSentence(inputText);
+    // 句剖析场景下,同步拉取 anatomy(基于当前输入框句子)
+    if (activeScene === 'anatomy') {
+      actions.analyzeAnatomy(inputText);
+    }
   };
 
   const renderScene = () => {
@@ -30,7 +41,15 @@ function App() {
       case 'timeline':
         return <TimelineScene analysis={state.currentAnalysis} darkMode={darkMode} />;
       case 'anatomy':
-        return <AnatomyScene analysis={state.currentAnalysis} />;
+        return (
+          <AnatomyScene
+            analysis={state.currentAnalysis}
+            darkMode={darkMode}
+            onAnalyzeAnatomy={(s) => actions.analyzeAnatomy(s)}
+            isAnalyzing={state.isLoading}
+            error={state.error}
+          />
+        );
       case 'expand':
         return <ExpandScene analysis={state.currentAnalysis} />;
       default:
