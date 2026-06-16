@@ -10,6 +10,7 @@ interface AppState {
 interface AppActions {
   analyzeSentence: (sentence: string) => Promise<void>;
   analyzeAnatomy: (sentence: string) => Promise<void>;
+  analyzeExpansion: (sentence: string) => Promise<void>;
   clearAnalysis: () => void;
   clearError: () => void;
 }
@@ -73,6 +74,7 @@ export function useAppState(): [AppState, AppActions] {
         },
         aiTeacherInsight: '',
         anatomy: sentenceChanged ? undefined : currentAnalysis?.anatomy,
+        expansion: sentenceChanged ? undefined : currentAnalysis?.expansion,
       };
 
       setCurrentAnalysis(analysis);
@@ -124,6 +126,46 @@ export function useAppState(): [AppState, AppActions] {
     }
   }, []);
 
+  const analyzeExpansion = useCallback(async (sentence: string) => {
+    if (!sentence.trim()) {
+      setError('请输入句子');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await window.electronAPI.analyzeExpansion(sentence);
+
+      if (!result.success) {
+        setError((result as { success: false; error?: string }).error || '分析失败');
+        return;
+      }
+
+      // 合并到现有 analysis(保留 tense / anatomy 等其它场景数据),或新建一个骨架
+      setCurrentAnalysis((prev) => {
+        const base: SentenceAnalysis = prev && prev.sentence === sentence ? prev : {
+          sentence,
+          translation: '',
+          translationExplanation: '',
+          skeleton: { subject: '', verb: '', object_or_predicative: '', modifier: '' },
+          decomposition: { mainClause: { text: sentence, elements: [] } },
+          syntaxTree: [],
+          posTags: [],
+          tenses: { past: '', present: '', summary: 'unknown', detailList: [] },
+          expansions: { word: '', progressiveSteps: [], categories: {} },
+          aiTeacherInsight: '',
+        };
+        return { ...base, expansion: { backend: result.data } };
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '分析失败');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const clearAnalysis = useCallback(() => {
     setCurrentAnalysis(null);
     setError(null);
@@ -135,6 +177,6 @@ export function useAppState(): [AppState, AppActions] {
 
   return [
     { currentAnalysis, isLoading, error },
-    { analyzeSentence, analyzeAnatomy, clearAnalysis, clearError },
+    { analyzeSentence, analyzeAnatomy, analyzeExpansion, clearAnalysis, clearError },
   ];
 }

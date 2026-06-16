@@ -4,6 +4,82 @@
 
 ---
 
+## M3a - 句扩展 Grammar Engine(phrase-level)+ 只读三栏 UI(2026-06-16)
+
+### 目标
+
+交付句扩展模块的**最小可验证骨架**:后端 Grammar Engine(phrase-level 数据模型)+ 前端只读三栏 UI(扩展类型库 / 句子画布 / 短语结构图)。M3a 严格只读,不做提交闭环。
+
+### 核心设计精神
+
+**数据模型稳定优先于分析精度**:M3a 目标是验证 Grammar Engine 的数据模型稳定性,不是实现最终句法分析器。优先保证 `PhraseNode` 可扩展(M3b/M3c 不改数据结构)、Parent-Child 可挂载、VP 特征完整——保证 M3b 接 Benepar / M3c 接 LanguageTool 时无需重构。
+
+### 关键决策
+
+1. **phrase-level 数据模型(非 token 级)**
+   - 扩展单位是 NP/VP/PP/Clause,不是单个 token(原则 #1/#2)。
+   - `PhraseNode` 是数据契约:含 `features`(特征槽)+ `parent_id`/`children_ids`(挂载)。
+   - 规则库查询键是 `PhraseType`(NP_RULES),不是 token POS。
+
+2. **调整 1:Parent-Child 挂载消除漂浮**
+   - `PhraseNode` 加 `parent_id`/`children_ids`;segment() 内部建立 PP→相邻 NP/VP 挂载。
+   - 例 `likes the dog in the park` → PP(`in the park`).parent_id = NP(`the dog`),父节点 children_ids 回填。
+   - M3a 右栏不显示嵌套(扁平短语序列),但数据具备树能力(M3b/M3a+1 可视化)。
+
+3. **调整 2:VP 吞完整时态链**
+   - 从主动词回溯吞 auxiliaries + modal + main verb + particles(prt dep)。
+   - `has been working` → 一个 VP,tense=`present_perfect_progressive`,aux_chain=`[has,been]`。
+   - `would like` → 一个 VP,modal=`would`;`to help`(xcomp)不纳入,留 M3b。
+
+4. **调整 3:右栏命名「短语结构图」而非「成分句法树」**
+   - M3a 尚未引入 Benepar,当前只是 spaCy 的 phrase grouping,叫「成分句法树」是过度承诺。
+   - 组件文件名 `ExpansionTree.tsx` 不变,仅 UI 标题文案 M3b 升级。
+
+5. **Validator 只实现主谓一致,其余 4 项签名齐返回 PASS**
+   - 直接读短语特征槽(不重新做 token 级句法分析),这是 phrase-level 模型的红利。
+   - `He like dogs.` → auto-correction `{from:"like", to:"likes"}`。
+   - 其余 4 项(tense_consistency/clause_completeness/non_finite/relative_pronoun)函数签名齐、返回 PASS,供 M3b/c 接入。
+
+6. **IPC 链路复制 M2 anatomy 模式**
+   - `ipc/index.ts`/`preload`/`appState.ts`/`App.tsx` 全部复制 anatomy 版,改名字和 URL。三段重复是已知问题,M3 结束后抽 `forwardToBackend(path)` 工具重构。
+
+7. **UI 风格对齐 anatomy 场景**
+   - 复用 anatomy 的容器(`p-6 rounded-2xl border`)、卡片、徽章、`darkMode`、`animate-fade-in` 风格。
+   - 短语配色与角色色对齐:NP=蓝、VP=绿、PP=琥珀(新 utils/phraseColor.ts)。
+
+### 踩过的坑
+
+1. **spaCy 把 `like` 误标 ADP(主谓一致兜底)**
+   - `He like dogs.` —— spaCy en_core_web_sm 把 `like` 标成 `ADP/ROOT`,无 Tense morph,导致 VP tense=`unknown`,主谓一致检查不触发。
+   - 修复:Validator 加兜底——tense=unknown 且无 modal/aux 时按 simple present 处理;segmenter 加 `VERB_LEMMA_FALLBACK`(高频动词 lemma 白名单)识别谓语头。
+   - 这是 spaCy 精度问题的工程兜底,符合「数据模型稳定优先于精度」精神。M3b 接 Benepar 后这类误标应大幅减少。
+
+2. **代词 NP 不应可扩展**
+   - 初版规则给所有 NP adj/number 候选,导致 `NP(I)` 也高亮可扩展(能说 "cute I"?)。
+   - 修复:engine 里 head_pos==PRON 的 NP 标记 is_expandable=False。
+
+3. **`pytest` 不在项目环境**
+   - requirements.txt 未列 pytest。本次 `pip install pytest` 到项目用的全局 Python 3.12。后续应补进 requirements.txt(本次未擅动)。
+
+4. **appState.ts 编辑误删尾部**
+   - 一次 Edit 的 old_string 含 `\r\n` 换行未精确匹配,导致文件尾部(clearError/return/闭合括号)被误删。重读确认后用唯一锚点重建尾部。教训:Windows CRLF 文件做大段 Edit 前先确认换行,或用更小的唯一锚点。
+
+### 验证状态
+
+- ✅ `pytest backend/tests/test_expansion_engine.py` 15 测试全过(覆盖 spec §5.1 的 11 项区域)
+- ✅ `curl /api/expansion/analyze` 三例通过(I like dogs. / He has been working hard. / likes the dog in the park)
+- ✅ `npx tsc --noEmit` 零错误
+- ✅ `npm run build` main/preload/renderer 全链路通过
+- ✅ Electron 窗口人工验证(2026-06-16):三栏布局 / 短语画布特征槽徽章 / 可扩展高亮+绿点 / 不可扩展灰显 / [+]菜单显示模板 / 右栏「短语结构图」扁平结构 / 点树叶子联动中栏
+
+### 路线图(M3a 之后)
+
+- **M3a+1**(Phase 1 写路径):提交闭环、新增高亮、连线、动态 Expansion Tree、Parent-Child 可视化、Depth 限制
+- **M3b**(Phase 2):装 Benepar,`phrase_segmenter` 换实现;PP/participle/infinitive phrase 扩展(含 `to help`);Validator tense_consistency 实现;右栏升级命名为「成分句法树」
+- **M3c**(Phase 3):接 LanguageTool;relative/adverbial/noun clause 扩展;Validator 其他 3 项实现 + 关系代词匹配
+
+---
+
 ## M2 - 句剖析分析场景(2026-06-14)
 
 ### 目标

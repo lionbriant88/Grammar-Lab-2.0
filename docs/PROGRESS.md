@@ -12,7 +12,7 @@
 | 0 | 基础框架搭建 | ✅ 完成 | 2026-06-12 |
 | 1 | 时间轴分析功能 | ✅ 完成 | 2026-06-13 |
 | 2 | 句剖析分析功能 | ✅ 完成 | 2026-06-14 |
-| 3 | 句扩展分析功能 | ⏳ 待开始 | - |
+| 3 | 句扩展分析功能 | 🚧 M3a 完成 | 2026-06-16 |
 | 4 | AI 模型集成 | ⏳ 待开始 | - |
 
 ---
@@ -199,13 +199,78 @@ npm run build    # 构建生产版本
 
 ---
 
-## ⏭️ 下一步：阶段 3 - 句扩展分析功能
+## ✅ 阶段 3: 句扩展分析功能 - M3a 完成(2026-06-16)
 
-### 计划任务
+### 任务清单
 
-1. **扩展示例** - 核心词 → 修饰语 → 从句的渐进式扩展示例
-2. **分类展示** - 按扩展类型分类（形容词、副词、介词短语、从句）
-3. **集成到场景** - 替换 ExpandScene 空白占位符
+- [x] 后端 Grammar Engine(phrase-level 数据模型)
+  - `phrase_segmenter.py` [新] - NP/VP/PP 识别 + Parent-Child 挂载(调整1)+ VP 完整时态链(调整2)
+  - `expansion_rules.py` [新] - 规则库(键=PhraseType)
+  - `expansion_templates.py` [新] - L1 模板 20 个(adj7/adv6/num4/degree3)
+  - `expansion_validator.py` [新] - 主谓一致有实现,其他 4 项签名齐返回 PASS
+  - `expansion_engine.py` [新] - 主入口 analyze
+  - `models.py` 追加 `Expansion*` Pydantic 6 类
+- [x] 后端端点 `app.py` 追加 `/api/expansion/analyze`
+- [x] 单元测试 `test_expansion_engine.py`(15 测试全过)+ `conftest.py`
+- [x] 前端 IPC 链路(ipc/preload/types/appState/App,复制 M2 anatomy 模式)
+- [x] 前端三栏 UI:SentenceCanvas(短语画布+特征槽徽章+可扩展高亮)+ ExtensionMenu([+]只读浮层)+ ExpansionTree(右栏「短语结构图」)+ ExtensionLibrary(左栏占位)+ ExpandScene 三栏编排
+- [x] UI 风格对齐 anatomy(新 utils/phraseColor.ts,NP=蓝/VP=绿/PP=琥珀)
+- [x] Electron 端到端人工验证通过
+
+### 设计要点
+
+- **phrase-level 数据模型**:扩展单位是 NP/VP/PP/Clause,不是 token(原则 #1/#2)。
+- **三条架构调整**:① PhraseNode 加 parent_id/children_ids(PP→NP/VP 挂载消除漂浮);② VP 吞完整时态链(has been working/would like 各一个 VP);③ 右栏叫「短语结构图」不叫「成分句法树」(M3b 升级)。
+- **设计精神**:数据模型稳定优先于分析精度,为 M3b 接 Benepar / M3c 接 LanguageTool 预留接缝。
+- **严格只读**:不做提交闭环、新增高亮、连线、动态 Expansion Tree、Level 2/3、完整 Validator、AI。
+
+### 新增文件
+
+- `backend/grammar_engine/phrase_segmenter.py` - 短语识别(spaCy noun_chunks+dep_,M3b 换 Benepar)
+- `backend/grammar_engine/expansion_rules.py` - 规则库(短语类型→可扩展项)
+- `backend/grammar_engine/expansion_templates.py` - L1 模板集(20 个)
+- `backend/grammar_engine/expansion_validator.py` - Validator(主谓一致有实现,其他 4 项占位)
+- `backend/grammar_engine/expansion_engine.py` - 主入口
+- `backend/tests/test_expansion_engine.py` + `conftest.py` - 单元测试(15 项)
+- `src/renderer/components/expand/SentenceCanvas.tsx` - 短语画布 + 节点卡片
+- `src/renderer/components/expand/ExtensionMenu.tsx` - [+] 只读浮层
+- `src/renderer/components/expand/ExpansionTree.tsx` - 右栏短语结构图
+- `src/renderer/components/expand/ExtensionLibrary.tsx` - 左栏占位
+- `src/renderer/utils/phraseColor.ts` - 短语类型配色(对齐 anatomy)
+
+### 修改文件
+
+- `backend/grammar_engine/models.py` - 追加 Expansion* Pydantic
+- `backend/app.py` - 追加 /api/expansion/analyze 端点
+- `src/main/ipc/index.ts` - analyze-sentence-expansion handler
+- `src/preload/index.ts` - analyzeExpansion 暴露
+- `src/renderer/state/appState.ts` - analyzeExpansion action
+- `src/renderer/types/index.ts` - Expansion* 类型 + SentenceAnalysis.expansion
+- `src/renderer/App.tsx` - expand 场景自动拉取 + props 升级
+- `src/renderer/components/expand/ExpandScene.tsx` - 重写,三栏编排
+
+### 验证状态
+
+- ✅ pytest 15 测试全过
+- ✅ curl 三例通过(含 VP 时态链 + PP 挂载)
+- ✅ tsc --noEmit 零错误 + npm run build 全链路通过
+- ✅ Electron 窗口人工验证(2026-06-16):三栏 / 画布特征槽 / 高亮灰显 / [+]菜单 / 右栏短语结构图 / 树点叶子联动
+
+### 已知问题(留待后续)
+
+1. ipc/index.ts / appState.ts 三段 handler/action 重复(tense/anatomy/expansion),M3 结束后抽工具重构。
+2. spaCy 小模型对 `He like dogs.` 把 like 误标 ADP,靠 Validator simple_present 兜底 + VERB_LEMMA_FALLBACK 补救;M3b 接 Benepar 后应改善。
+3. pytest 未列入 requirements.txt(本次装到全局 python),后续补。
+
+---
+
+## ⏭️ 下一步：阶段 3 续(M3a+1 / M3b / M3c)
+
+- **M3a+1**(Phase 1 写路径):提交闭环、新增高亮、连线、动态 Expansion Tree、Parent-Child 可视化、Depth 限制
+- **M3b**(Phase 2):装 Benepar,phrase_segmenter 换实现;PP/participle/infinitive phrase 扩展;Validator tense_consistency 实现;右栏升级命名为「成分句法树」
+- **M3c**(Phase 3):接 LanguageTool;relative/adverbial/noun clause 扩展;Validator 其他 3 项实现 + 关系代词匹配
+- **阶段 4**:AI 模型集成
+
 
 ---
 

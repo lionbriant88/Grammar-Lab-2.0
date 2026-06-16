@@ -28,11 +28,22 @@ function App() {
     }
   }, [activeScene, state.currentAnalysis, actions]);
 
+  // 切到句扩展场景且该句尚未分析过句扩展时,自动拉取 expansion 数据(M3a 只读)
+  useEffect(() => {
+    if (activeScene === 'expand' && state.currentAnalysis && !state.currentAnalysis.expansion) {
+      actions.analyzeExpansion(state.currentAnalysis.sentence);
+    }
+  }, [activeScene, state.currentAnalysis, actions]);
+
   const handleAnalyze = () => {
     actions.analyzeSentence(inputText);
     // 句剖析场景下,同步拉取 anatomy(基于当前输入框句子)
     if (activeScene === 'anatomy') {
       actions.analyzeAnatomy(inputText);
+    }
+    // 句扩展场景下,同步拉取 expansion
+    if (activeScene === 'expand') {
+      actions.analyzeExpansion(inputText);
     }
   };
 
@@ -51,7 +62,15 @@ function App() {
           />
         );
       case 'expand':
-        return <ExpandScene analysis={state.currentAnalysis} />;
+        return (
+          <ExpandScene
+            analysis={state.currentAnalysis}
+            darkMode={darkMode}
+            onAnalyzeExpansion={(s) => actions.analyzeExpansion(s)}
+            isAnalyzing={state.isLoading}
+            error={state.error}
+          />
+        );
       default:
         return <TimelineScene analysis={state.currentAnalysis} darkMode={darkMode} />;
     }

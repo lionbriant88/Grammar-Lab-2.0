@@ -210,3 +210,63 @@ class AnatomyResponse(BaseModel):
     chunks: List[Chunk]
     clauses: List[Clause]
     summary: AnatomySummary
+
+
+# ===================== 句扩展 (Expansion) 模型 — M3a =====================
+# spec §2.7:phrase-level 数据模型。字段是 phrases(不是 nodes)。
+
+class PhraseTypeInfo(BaseModel):
+    """短语类型信息"""
+    type: str = Field(..., description="NP / VP / PP ...")
+    label_cn: str = Field(..., description="名词短语 / 动词短语 ...")
+
+
+class ExpansionKindInfo(BaseModel):
+    """扩展项类型元数据"""
+    kind: str
+    label_cn: str
+    level: int = Field(..., description="1=词级, 2=短语级, 3=从句级")
+    available: bool = Field(..., description="当前是否已开放")
+
+
+class ExpansionTemplateInfo(BaseModel):
+    """单个扩展模板(带预览)"""
+    template_id: str
+    surface: str = Field(..., description="填充词,如 cute / really")
+    preview: str = Field(..., description="预览短语,如 cute dogs")
+    semantic_class: str = Field(..., description="语义类,如 appearance / degree")
+
+
+class ExpansionCandidate(BaseModel):
+    """一个 kind 的一组模板候选"""
+    kind: str
+    kind_label_cn: str
+    level: int
+    available: bool
+    templates: List[ExpansionTemplateInfo] = Field(default_factory=list)
+
+
+class PhraseNodeInfo(BaseModel):
+    """短语节点(phrase-level,含特征槽 + Parent-Child 挂载)"""
+    id: str
+    type: str = Field(..., description="NP / VP / PP ...")
+    text: str = Field(..., description="短语文本,如 the dogs / has been working")
+    head_token_text: str = Field(..., description="中心词,如 dogs")
+    head_pos: str = Field(..., description="中心词 POS")
+    syntactic_role: str = Field(..., description="subject / predicate / object / adverbial / other")
+    span: tuple[int, int] = Field(..., description="字符位置 [start, end)")
+    features: dict = Field(
+        default_factory=dict,
+        description="特征槽:NP{number,person}; VP{tense,modal,aux_chain,aspect}",
+    )
+    parent_id: Optional[str] = Field(default=None, description="父短语 id;None=顶层")
+    children_ids: List[str] = Field(default_factory=list, description="子短语 id 列表")
+    is_expandable: bool = Field(default=False, description="该短语是否有 L1 可扩展项")
+    candidates: List[ExpansionCandidate] = Field(default_factory=list, description="候选菜单,仅 is_expandable=True 时非空")
+
+
+class ExpansionAnalyzeResponse(BaseModel):
+    """句扩展分析响应(注意字段是 phrases,不是 nodes)"""
+    sentence: str
+    phrases: List[PhraseNodeInfo]
+    warnings: List[str] = []

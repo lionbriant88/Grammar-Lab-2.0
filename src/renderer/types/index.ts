@@ -44,6 +44,52 @@ export interface AnatomyBackend {
   };
 }
 
+// ===================== 句扩展 (Expansion) 类型 — M3a =====================
+// spec §2.7:phrase-level 数据模型,字段是 phrases(不是 nodes)。
+
+// 短语类型
+export type PhraseType = 'NP' | 'VP' | 'PP' | 'ADJP' | 'ADVP' | 'CLAUSE' | 'OTHER';
+
+// 单个扩展模板(带预览)
+export interface ExpansionTemplateInfo {
+  template_id: string;
+  surface: string;
+  preview: string;
+  semantic_class: string;
+}
+
+// 一个 kind 的一组模板候选
+export interface ExpansionCandidate {
+  kind: string;
+  kind_label_cn: string;
+  level: number;
+  available: boolean;
+  templates: ExpansionTemplateInfo[];
+}
+
+// 短语节点(phrase-level,含特征槽 + Parent-Child 挂载)
+export interface PhraseNodeInfo {
+  id: string;
+  type: PhraseType;
+  text: string;
+  head_token_text: string;
+  head_pos: string;
+  syntactic_role: string;
+  span: [number, number];
+  features: Record<string, unknown>;
+  parent_id: string | null;
+  children_ids: string[];
+  is_expandable: boolean;
+  candidates: ExpansionCandidate[];
+}
+
+// 句扩展后端响应
+export interface ExpansionBackend {
+  sentence: string;
+  phrases: PhraseNodeInfo[];
+  warnings: string[];
+}
+
 // 句子分析数据类型
 export interface SentenceAnalysis {
   sentence: string;
@@ -67,6 +113,10 @@ export interface SentenceAnalysis {
   // 阶段 2:句剖析后端数据(切到 anatomy 场景时按需拉取)
   anatomy?: {
     backend: AnatomyBackend;
+  };
+  // 阶段 3:句扩展后端数据(切到 expand 场景时按需拉取,M3a 只读)
+  expansion?: {
+    backend: ExpansionBackend;
   };
 }
 

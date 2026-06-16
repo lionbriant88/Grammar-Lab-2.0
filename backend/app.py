@@ -21,6 +21,8 @@ from grammar_engine.models import (
     Chunk,
     Clause,
     AnatomyResponse,
+    PhraseNodeInfo,
+    ExpansionAnalyzeResponse,
 )
 from grammar_engine.nlp_loader import nlp_loader
 
@@ -175,6 +177,41 @@ async def analyze_anatomy(request: AnalyzeRequest):
         clauses=[Clause(**cl) for cl in result["clauses"]],
         summary=result["summary"],
     )
+
+
+@app.post("/api/expansion/analyze", response_model=ExpansionAnalyzeResponse)
+async def analyze_expansion(request: AnalyzeRequest):
+    """句扩展分析:短语结构 + 可扩展候选(phrase-level,M3a 只读)。"""
+    if not model_loaded:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    from grammar_engine.expansion_engine import analyze as expansion_analyze
+
+    result = expansion_analyze(request.sentence)
+
+    return ExpansionAnalyzeResponse(
+        sentence=result["sentence"],
+        phrases=[PhraseNodeInfo(**_phrase_to_dict(p)) for p in result["phrases"]],
+        warnings=result.get("warnings", []),
+    )
+
+
+def _phrase_to_dict(p) -> dict:
+    """把 PhraseNode dataclass 转成可喂给 PhraseNodeInfo 的 dict(candidates 已是 list[dict])。"""
+    return {
+        "id": p.id,
+        "type": p.type,
+        "text": p.text,
+        "head_token_text": p.head_token_text,
+        "head_pos": p.head_pos,
+        "syntactic_role": p.syntactic_role,
+        "span": p.span,
+        "features": p.features,
+        "parent_id": p.parent_id,
+        "children_ids": p.children_ids,
+        "is_expandable": p.is_expandable,
+        "candidates": p.candidates,
+    }
 
 
 if __name__ == "__main__":
