@@ -29,6 +29,15 @@ export interface ChunkBlocksProps {
   onMoveWord: (sourceChunkId: string, wordIndex: number, targetChunkId: string, insertIndex: number) => void;
 }
 
+/**
+ * 判断一个词是否纯标点(全是非字母数字字符)。
+ * 用于:即便后端把某块标成 punct,块内的实词(如 "black" 这种表语形容词)
+ * 也应可拖动——只有真正是标点的词(, . ! ?)才锁住。
+ */
+function isPurePunctuation(word: string): boolean {
+  return /^[\W_]+$/.test(word);
+}
+
 export default function ChunkBlocks({
   chunks,
   darkMode,
@@ -66,7 +75,9 @@ export default function ChunkBlocks({
         {chunks.map((chunk) => {
           const colorClass = getRoleColorClass(chunk.role, darkMode);
           const isSelected = selectedId === chunk.id;
-          const isPunct = chunk.role === 'punct';
+          // 块是否"整块都是标点"(用于:块级点击是否锁、块级 cursor 是否换 default)
+          // 若块里混着实词(如后端把 black 误判成 punct),仍允许点选和拖动。
+          const isAllPunct = chunk.words.every(isPurePunctuation);
 
           return (
             <div
@@ -74,7 +85,7 @@ export default function ChunkBlocks({
               role={isEditing ? 'button' : undefined}
               draggable={false}
               onClick={() => {
-                if (!isEditing && !isPunct) {
+                if (!isAllPunct) {
                   onSelectChunk(isSelected ? null : chunk.id);
                 }
               }}
@@ -82,33 +93,37 @@ export default function ChunkBlocks({
               onDrop={isEditing ? (e) => handleDropOnChunk(e, chunk.id) : undefined}
               className={[
                 'group relative rounded-xl border px-3 py-2 transition-all select-none',
-                isPunct ? 'cursor-default' : 'cursor-pointer',
+                isAllPunct ? 'cursor-default' : 'cursor-pointer',
                 colorClass,
                 isEditing ? 'border-dashed' : '',
                 isSelected ? 'ring-2 ring-offset-1 ring-blue-400 dark:ring-offset-slate-900 shadow-md -translate-y-0.5' : '',
-                !isEditing && !isPunct ? 'hover:-translate-y-0.5 hover:shadow-md' : '',
+                !isEditing && !isAllPunct ? 'hover:-translate-y-0.5 hover:shadow-md' : '',
               ].join(' ')}
-              title={isPunct ? undefined : `${getRoleLabel(chunk.role)}:${getRoleDescription(chunk.role)}`}
+              title={isAllPunct ? undefined : `${getRoleLabel(chunk.role)}:${getRoleDescription(chunk.role)}`}
             >
               {/* 词序列 */}
               <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
-                {chunk.words.map((word, wi) => (
-                  <span
-                    key={wi}
-                    data-word-idx={wi}
-                    draggable={isEditing && !isPunct}
-                    onDragStart={isEditing && !isPunct ? (e) => handleDragStart(e, chunk.id, wi) : undefined}
-                    className={[
-                      'text-sm font-medium',
-                      isEditing && !isPunct ? 'cursor-grab active:cursor-grabbing px-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10' : '',
-                    ].join(' ')}
-                  >
-                    {word}
-                  </span>
-                ))}
+                {chunk.words.map((word, wi) => {
+                  const wordIsPunct = isPurePunctuation(word);
+                  const wordDraggable = isEditing && !wordIsPunct;
+                  return (
+                    <span
+                      key={wi}
+                      data-word-idx={wi}
+                      draggable={wordDraggable}
+                      onDragStart={wordDraggable ? (e) => handleDragStart(e, chunk.id, wi) : undefined}
+                      className={[
+                        'text-sm font-medium',
+                        wordDraggable ? 'cursor-grab active:cursor-grabbing px-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10' : '',
+                      ].join(' ')}
+                    >
+                      {word}
+                    </span>
+                  );
+                })}
               </div>
               {/* 角色标签 */}
-              {!isPunct && (
+              {!isAllPunct && (
                 <div className="mt-1 text-[10px] font-bold uppercase tracking-wider opacity-70">
                   {chunk.label}
                 </div>

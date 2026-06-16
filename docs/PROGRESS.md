@@ -192,7 +192,7 @@ npm run build    # 构建生产版本
 - ✅ TypeScript 编译零错误
 - ✅ electron-vite 构建 main/preload/renderer 全部成功
 - ✅ Vite dev server 解析所有新模块（200）
-- ⏳ Electron 窗口内的拖拽编辑交互待人工确认
+- ✅ Electron 窗口内人工验证：拖拽编辑 + 选块改角色 + 标点块内误判词可拖 均通过（2026-06-16）
 - ✅ 已知局限：spaCy en_core_web_sm 对个别复杂句（如名词+定语从句+动词）会误判 ROOT，由手动编辑模式兜底
 
 ---

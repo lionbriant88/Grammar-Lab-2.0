@@ -62,6 +62,18 @@
    - `analyzeSentence` 换句时仍保留旧 anatomy 引用;句剖析场景下「开始分析」只触发 tense 不触发 anatomy。
    - **解决**:`analyzeSentence` 检测 `sentenceChanged` 时清空 anatomy;`handleAnalyze` 在 anatomy 场景同步触发 `analyzeAnatomy`。
 
+7. **编辑态点选块不响应 → 改角色按钮永远灰着**
+   - `ChunkBlocks.tsx` 的块 `onClick` 条件是 `!isEditing && !isPunct`——编辑态下点块完全没反应。
+   - 但 `EditToolbar` 的「改角色」按钮是按 `selectedRole` 是否非空启用的。编辑态下点不动块 → 永远没选中 → 改角色按钮永远 disabled。
+   - 致命矛盾:编辑态核心功能(改角色)在编辑态下走不通。
+   - **解决**:把条件改成 `if (!isAllPunct)`——编辑态和展示态都允许点选块(词 `<span>` 单独元素不冒泡,点词仍是拖拽起点,两者不冲突)。
+
+8. **后端把实词判成 punct → 教师拖不出**
+   - 例句 `The cat ... is black.` 的表语 `black` 被分到 `role:"punct"` 块。
+   - `ChunkBlocks` 用 `isPunct = chunk.role === 'punct'` 一刀切,punct 块所有词 `draggable=false`。
+   - 结果:后端误判的实词被「标点保护」反向锁死,教师永远救不出来——这恰好违背了「手动编辑兜底 spaCy 误判」的设计初衷。
+   - **解决**:把块级 punct 判定改成「块内所有词全是标点符号才锁」,引入 `isPurePunctuation(word)` 工具函数。纯标点(, . ! ?)仍不可拖;混着实词的块(无论 role)全可拖。后端分析器暂不改,前端兜底更稳。
+
 ### 文件清单
 
 **新增(后端)**:
