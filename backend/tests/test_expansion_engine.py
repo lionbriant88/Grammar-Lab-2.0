@@ -296,3 +296,35 @@ def test_apply_template_adjective_to_np():
 
     new_sentence = apply_template(np_dogs, tpl, "I like the dogs.")
     assert new_sentence == "I like the cute dogs."
+
+
+def test_apply_template_number_replaces_a():
+    """apply_template 给 NP 套 number — 替换 a/an 限定词。"""
+    from grammar_engine.expansion_engine import apply_template
+    from grammar_engine.expansion_templates import get_template_by_id
+    from grammar_engine.phrase_segmenter import segment
+    from grammar_engine.nlp_loader import nlp_loader
+
+    doc = nlp_loader.get()("I saw a dog.")
+    phrases = segment(doc)
+    np_dog = next(p for p in phrases if p.type == "NP" and "dog" in p.text)
+    tpl = get_template_by_id("tpl_num_two")
+
+    new_sentence = apply_template(np_dog, tpl, "I saw a dog.")
+    assert new_sentence == "I saw two dogs."
+
+
+def test_apply_template_number_no_determiner():
+    """apply_template 给 NP 套 number — 没有 a/an 时只插在 head 前。"""
+    from grammar_engine.expansion_engine import apply_template
+    from grammar_engine.expansion_templates import get_template_by_id
+    from grammar_engine.phrase_segmenter import segment
+    from grammar_engine.nlp_loader import nlp_loader
+
+    doc = nlp_loader.get()("I like the dogs.")
+    phrases = segment(doc)
+    np_dogs = next(p for p in phrases if p.type == "NP" and "dogs" in p.text)
+    tpl = get_template_by_id("tpl_num_two")
+
+    new_sentence = apply_template(np_dogs, tpl, "I like the dogs.")
+    assert new_sentence == "I like the two dogs."

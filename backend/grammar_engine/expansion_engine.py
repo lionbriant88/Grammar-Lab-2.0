@@ -132,6 +132,39 @@ def apply_template(phrase: Any, template: Any, sentence: str) -> str:
         # 简化:在 head 之前的最后空白处插入 adj
         new_sentence = before + " " + template.surface + " " + sentence[after_start:].lstrip()
         return new_sentence
+
+    if template.kind == "number":
+        head = phrase.head_token_text
+        head_idx = sentence.find(head)
+        if head_idx < 0:
+            return sentence
+        # 检测 head 前紧邻的 a/an(前一个 token 是 a/an)
+        # 简化:看 head_idx 之前的字符,如果是 " a " 或 " an "(带空格)就替换
+        before = sentence[:head_idx].rstrip()
+        tokens_before = before.split()
+        new_tokens = []
+        replaced = False
+        for tok in tokens_before:
+            if not replaced and tok.lower() in ("a", "an"):
+                # 跳过 a/an,被 number 替代
+                replaced = True
+                continue
+            new_tokens.append(tok)
+
+        # 如果替换了 a/an,将名词复数化
+        plural_head = head
+        if replaced:
+            # 简单复数化规则：通常加 s
+            plural_head = head + "s"
+
+        if not replaced:
+            new_tokens.append(template.surface)
+            new_sentence = " ".join(new_tokens) + " " + head + sentence[head_idx + len(head):]
+        else:
+            new_tokens.append(template.surface)
+            new_sentence = " ".join(new_tokens) + " " + plural_head + sentence[head_idx + len(head):]
+        return new_sentence
+
     return sentence
 
 
