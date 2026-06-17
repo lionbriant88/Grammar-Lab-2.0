@@ -157,12 +157,9 @@ def apply_template(phrase: Any, template: Any, sentence: str) -> str:
             # 简单复数化规则：通常加 s
             plural_head = head + "s"
 
-        if not replaced:
-            new_tokens.append(template.surface)
-            new_sentence = " ".join(new_tokens) + " " + head + sentence[head_idx + len(head):]
-        else:
-            new_tokens.append(template.surface)
-            new_sentence = " ".join(new_tokens) + " " + plural_head + sentence[head_idx + len(head):]
+        new_tokens.append(template.surface)
+        noun_form = plural_head if replaced else head
+        new_sentence = " ".join(new_tokens) + " " + noun_form + sentence[head_idx + len(head):]
         return new_sentence
 
     return sentence
