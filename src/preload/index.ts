@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   analyzeSentence: (sentence: string) => ipcRenderer.invoke('analyze-sentence', sentence),
   analyzeAnatomy: (sentence: string) => ipcRenderer.invoke('analyze-sentence-anatomy', sentence),
   analyzeExpansion: (sentence: string) => ipcRenderer.invoke('analyze-sentence-expansion', sentence),
+  applyExpansion: (sentence: string, phraseId: string, templateId: string) =>
+    ipcRenderer.invoke('apply-expansion', sentence, phraseId, templateId),
   speakText: (text: string) => ipcRenderer.invoke('speak-text', text),
   copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text),
   onDarkModeChange: (_callback: (isDark: boolean) => void) => {
@@ -17,6 +19,7 @@ export interface ElectronAPI {
   analyzeSentence: (sentence: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   analyzeAnatomy: (sentence: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   analyzeExpansion: (sentence: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+  applyExpansion: (sentence: string, phraseId: string, templateId: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   speakText: (text: string) => Promise<{ success: boolean }>;
   copyToClipboard: (text: string) => Promise<{ success: boolean }>;
   onDarkModeChange: (callback: (isDark: boolean) => void) => void;
