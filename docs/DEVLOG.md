@@ -4,6 +4,45 @@
 
 ---
 
+## 2026-06-17 M3a+1 — 句扩展写路径与视觉重塑
+
+[按倒序记]
+
+### 阶段切分(方案 B:垂直切分,后端优先)
+
+- M3a+1.1 后端写路径:`/api/expansion/apply` 端点 + apply_template 拼装器 + Validator 4 级
+- M3a+1.2 前端最小闭环:history[] + SentenceVersion 快照 + Undo/Redo
+- M3a+1.3 视觉重塑:Inspector 化 + 嵌套右栏 + Quota DFS + 底栏 timeline
+- M3a+1.4 收尾:50 步上限 + 键盘快捷键 + 全链路验证
+
+### 架构铁律(用户 2026-06-17 确认)
+
+- 后端 100% stateless(无 session_id,响应只含 sentence/phrases/warnings/validation)
+- 后端是唯一句法权威(前端永不自造 PhraseNode)
+- 1 apply = 1 SentenceVersion 快照(不存 patch,不合并)
+- Quota 是前端 DFS 派生(后端响应永不含 quota 字段)
+- Validator 顾问非权威(/apply 永远 200,severity 4 级包装)
+- 画布 phrase-level 平铺(永远不出现 token 卡片)
+- M3b 接 Benepar 时只换 phrase_segmenter 函数体,不动 apply / history / UI
+
+### 踩坑/决策
+
+- 拼装规则按 base 句重算位置(不依赖 history[]),V1+V2+V3 累加语义自然成立
+- timeline 支持跳任意版本 + 从中分支(M5 Version Tree 演化留接口)
+- 50 步上限触发截断后顶栏弹 toast,原句永远保留
+- Quota DFS 简化版:只看 children_ids 递归,child.type 映射到 parent 上的 kind
+
+### 验证
+
+- pytest 26/26 通过(M3a 11 + M3a+1.1 15,1 skipped)
+- curl 4 端点全 200
+- tsc --noEmit 零错
+- npm run build 全链路
+- Electron 端到端 4 阶段联测
+- Vitest 1/1 通过(50 步截断)
+
+---
+
 ## M3a - 句扩展 Grammar Engine(phrase-level)+ 只读三栏 UI(2026-06-16)
 
 ### 目标
