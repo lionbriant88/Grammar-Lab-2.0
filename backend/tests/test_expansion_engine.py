@@ -328,3 +328,35 @@ def test_apply_template_number_no_determiner():
 
     new_sentence = apply_template(np_dogs, tpl, "I like the dogs.")
     assert new_sentence == "I like the two dogs."
+
+
+def test_apply_template_adverb_simple_vp():
+    """apply_template 给简单 VP 套副词 — 插到 main verb 前。"""
+    from grammar_engine.expansion_engine import apply_template
+    from grammar_engine.expansion_templates import get_template_by_id
+    from grammar_engine.phrase_segmenter import segment
+    from grammar_engine.nlp_loader import nlp_loader
+
+    doc = nlp_loader.get()("He likes dogs.")
+    phrases = segment(doc)
+    vp = next(p for p in phrases if p.type == "VP")
+    tpl = get_template_by_id("tpl_adv_really")
+
+    new_sentence = apply_template(vp, tpl, "He likes dogs.")
+    assert new_sentence == "He really likes dogs."
+
+
+def test_apply_template_adverb_after_modal():
+    """apply_template 给带 modal 的 VP 套副词 — 插到 modal 后、main verb 前。"""
+    from grammar_engine.expansion_engine import apply_template
+    from grammar_engine.expansion_templates import get_template_by_id
+    from grammar_engine.phrase_segmenter import segment
+    from grammar_engine.nlp_loader import nlp_loader
+
+    doc = nlp_loader.get()("She would like it.")
+    phrases = segment(doc)
+    vp_like = next(p for p in phrases if p.type == "VP" and p.head_token_text == "like")
+    tpl = get_template_by_id("tpl_adv_really")
+
+    new_sentence = apply_template(vp_like, tpl, "She would like it.")
+    assert new_sentence == "She would really like it."

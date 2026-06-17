@@ -162,6 +162,24 @@ def apply_template(phrase: Any, template: Any, sentence: str) -> str:
         new_sentence = " ".join(new_tokens) + " " + noun_form + sentence[head_idx + len(head):]
         return new_sentence
 
+    if template.kind == "adverb":
+        # 找 VP 的主词(head)位置,副词插到 modal 之后、main verb 之前
+        head = phrase.head_token_text
+        # 简化:在原句里找 main head 之前最近的空白
+        # 若有 modal 词(would/can/must...),插到 modal 之后
+        modal = phrase.features.get("modal")
+        if modal:
+            modal_idx = sentence.find(modal)
+            insert_pos = modal_idx + len(modal)
+        else:
+            # 没 modal,直接找 head 前
+            head_idx = sentence.find(head)
+            if head_idx < 0:
+                return sentence
+            insert_pos = head_idx
+        new_sentence = sentence[:insert_pos].rstrip() + " " + template.surface + " " + sentence[insert_pos:].lstrip()
+        return new_sentence
+
     return sentence
 
 
