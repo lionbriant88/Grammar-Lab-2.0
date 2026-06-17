@@ -114,4 +114,25 @@ def _compose_preview(tpl: Any, head: str) -> str:
     return f"{tpl.surface} {head}" if head else tpl.surface
 
 
-__all__ = ["analyze"]
+def apply_template(phrase: Any, template: Any, sentence: str) -> str:
+    """M3a+1:套模板到目标短语,返回新句(只支持 adjective 一类,M3a+1.1 后续任务补其它 kind)。
+
+    形容词:插到 NP head 之前,所有已有 adj 之后。
+    """
+    if template.kind == "adjective":
+        # 找 head 在原句中的字符位置
+        head = phrase.head_token_text
+        head_idx = sentence.find(head)
+        if head_idx < 0:
+            return sentence  # 找不到 head,不变
+        # 找到 head 之前第一个空格(head 前就是头一个词的开头)
+        before = sentence[:head_idx].rstrip()
+        after_start = head_idx
+        # 已有的 adj 之前是 determiner(若有)和 head
+        # 简化:在 head 之前的最后空白处插入 adj
+        new_sentence = before + " " + template.surface + " " + sentence[after_start:].lstrip()
+        return new_sentence
+    return sentence
+
+
+__all__ = ["analyze", "apply_template"]

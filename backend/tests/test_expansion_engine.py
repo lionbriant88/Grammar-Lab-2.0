@@ -278,3 +278,21 @@ def test_kind_metadata_l2_l3():
 
     # L1 应 available=True
     assert rules.get_kind_metadata("adjective")["available"] is True
+
+
+# ----------------------------- M3a+1.1 apply_template -----------------------------
+
+def test_apply_template_adjective_to_np():
+    """apply_template 给 NP 套形容词 — 插到 head 之前。"""
+    from grammar_engine.expansion_engine import apply_template
+    from grammar_engine.expansion_templates import get_template_by_id
+    from grammar_engine.phrase_segmenter import segment
+    from grammar_engine.nlp_loader import nlp_loader
+
+    doc = nlp_loader.get()("I like the dogs.")
+    phrases = segment(doc)
+    np_dogs = next(p for p in phrases if p.type == "NP" and "dogs" in p.text)
+    tpl = get_template_by_id("tpl_adj_cute")
+
+    new_sentence = apply_template(np_dogs, tpl, "I like the dogs.")
+    assert new_sentence == "I like the cute dogs."
