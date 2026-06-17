@@ -23,6 +23,9 @@ from grammar_engine.models import (
     AnatomyResponse,
     PhraseNodeInfo,
     ExpansionAnalyzeResponse,
+    ApplyRequest,
+    ExpansionApplyResponse,
+    ValidationReport as ValidationReportModel,
 )
 from grammar_engine.nlp_loader import nlp_loader
 
@@ -193,6 +196,25 @@ async def analyze_expansion(request: AnalyzeRequest):
         sentence=result["sentence"],
         phrases=[PhraseNodeInfo(**_phrase_to_dict(p)) for p in result["phrases"]],
         warnings=result.get("warnings", []),
+    )
+
+
+@app.post("/api/expansion/apply", response_model=ExpansionApplyResponse)
+async def apply_expansion(request: ApplyRequest):
+    """M3a+1 写路径:套模板到目标短语,返回完整响应(spec §2.1)。
+    /apply 永远 200(除 503),Validator 不阻断。
+    """
+    if not model_loaded:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    from grammar_engine.expansion_engine import apply as expansion_apply
+    result = expansion_apply(request.sentence, request.phrase_id, request.template_id)
+
+    return ExpansionApplyResponse(
+        sentence=result["sentence"],
+        phrases=[PhraseNodeInfo(**p) for p in result["phrases"]],
+        warnings=result.get("warnings", []),
+        validation=ValidationReportModel(**result["validation"]),
     )
 
 

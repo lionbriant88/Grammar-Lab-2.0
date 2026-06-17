@@ -498,3 +498,24 @@ def test_apply_template_id_not_found():
     result = apply("I like dogs.", "p1", "tpl_adj_nonexistent")
     assert any("template_id" in w for w in result["warnings"])
     assert len(result["phrases"]) >= 1
+
+
+# ----------------------------- M3a+1.8 端点集成测试 -----------------------------
+
+def test_endpoint_apply_via_testclient():
+    """FastAPI TestClient 测 /api/expansion/apply 端点。"""
+    from fastapi.testclient import TestClient
+    from app import app
+
+    # Note: phrase_id "p1" is NP(dogs) (noun_chunks assigns p0/p1, then VPs get p2+)
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/expansion/apply",
+            json={"sentence": "I like dogs.", "phrase_id": "p1", "template_id": "tpl_adj_cute", "mode": "offline"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["sentence"] == "I like cute dogs."
+        assert "phrases" in data
+        assert "validation" in data
+        assert data["validation"]["severity"] in ("PASS", "INFO", "WARNING", "ERROR")
