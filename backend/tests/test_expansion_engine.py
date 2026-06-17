@@ -456,3 +456,45 @@ def test_apply_response_shape():
     )
     assert resp.sentence == "I like cute dogs."
     assert resp.validation.severity == "PASS"
+
+
+# ----------------------------- M3a+1.7 apply() 顶层入口 -----------------------------
+
+def test_apply_full_pipeline_adjective():
+    """apply() 完整流水线:输入句 + phrase_id + template_id,返回完整响应。"""
+    from grammar_engine.expansion_engine import apply
+
+    # Note: phrase_id "p1" is NP(dogs) (noun_chunks assigns p0/p1, then VPs get p2+)
+    result = apply("I like dogs.", "p1", "tpl_adj_cute")
+    assert result["sentence"] == "I like cute dogs."
+    assert "phrases" in result
+    assert len(result["phrases"]) >= 3  # 至少 NP(I), VP(like), NP(cute dogs)
+    # 验证 NP(cute dogs) 包含 cute (phrases are dicts)
+    np_with_cute = next(
+        (p for p in result["phrases"] if p["type"] == "NP" and "cute" in p["text"]),
+        None,
+    )
+    assert np_with_cute is not None, f"重识别后应有 NP(cute dogs),got {[p['text'] for p in result['phrases']]}"
+    assert "warnings" in result
+    assert "validation" in result
+    assert result["validation"]["severity"] in ("PASS", "INFO", "WARNING", "ERROR")
+
+
+def test_apply_phrase_id_not_found():
+    """apply() 找不到 phrase_id → 200 等价 + warnings + phrases 不变。"""
+    from grammar_engine.expansion_engine import apply
+
+    result = apply("I like dogs.", "p99", "tpl_adj_cute")
+    assert any("phrase_id" in w for w in result["warnings"])
+    # phrases 应为原句 phrases(因为拼装失败)
+    assert len(result["phrases"]) >= 1
+
+
+def test_apply_template_id_not_found():
+    """apply() 找不到 template_id → warnings + phrases 不变。"""
+    from grammar_engine.expansion_engine import apply
+
+    # Note: phrase_id "p1" is NP(dogs)
+    result = apply("I like dogs.", "p1", "tpl_adj_nonexistent")
+    assert any("template_id" in w for w in result["warnings"])
+    assert len(result["phrases"]) >= 1

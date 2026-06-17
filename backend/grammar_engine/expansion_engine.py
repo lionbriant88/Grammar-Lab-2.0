@@ -192,4 +192,133 @@ def apply_template(phrase: Any, template: Any, sentence: str) -> str:
     return sentence
 
 
-__all__ = ["analyze", "apply_template"]
+def apply(sentence: str, phrase_id: str, template_id: str) -> Dict[str, Any]:
+    """M3a+1 写路径主入口(spec §2.2 流水线):
+    1. spaCy → doc, segment(doc) → base_phrases
+    2. 查 phrase_id → 目标 PhraseNode  + 查 template_id → Template
+    3. 拼装: apply_template → new_sentence
+    4. 重跑 analyze(new_sentence) → new_phrases
+    5. 调 Validator(5 项)
+    6. 包装 ValidationReport(4 级 severity)
+    7. 返回 {sentence, phrases, warnings, validation}
+
+    边界:phrase_id / template_id 找不到 → warnings + phrases=原 base_phrases,不抛异常。
+    """
+    from . import expansion_templates as templates
+    from . import expansion_validator as validator
+    from .nlp_loader import nlp_loader
+
+    sentence_clean = (sentence or "").strip()
+    if not sentence_clean:
+        return {
+            "sentence": sentence_clean,
+            "phrases": [],
+            "warnings": ["空句子"],
+            "validation": {"severity": "PASS", "is_valid": True, "errors": [], "warnings": [], "infos": [], "auto_corrections": []},
+        }
+
+    warnings: List[str] = []
+
+    # 1. spaCy → base_phrases
+    try:
+        nlp = nlp_loader.get()
+        doc = nlp(sentence_clean)
+    except Exception as e:  # noqa: BLE001
+        return {
+            "sentence": sentence_clean,
+            "phrases": [],
+            "warnings": [f"spaCy model unavailable: {e}"],
+            "validation": {"severity": "PASS", "is_valid": True, "errors": [], "warnings": [], "infos": [], "auto_corrections": []},
+        }
+
+    base_phrases = segment(doc)
+    base_phrases.sort(key=lambda n: n.span[0])
+
+    # 2. 查 phrase_id + template_id
+    target_phrase = next((p for p in base_phrases if p.id == phrase_id), None)
+    target_template = templates.get_template_by_id(template_id)
+
+    if target_phrase is None:
+        warnings.append(f"phrase_id '{phrase_id}' not found")
+        # 返回原 base_phrases(转 dict)+ validation 空
+        phrases_dicts = [_phrase_to_dict(p) for p in base_phrases]
+        return {
+            "sentence": sentence_clean,
+            "phrases": phrases_dicts,
+            "warnings": warnings,
+            "validation": {"severity": "PASS", "is_valid": True, "errors": [], "warnings": [], "infos": [], "auto_corrections": []},
+        }
+    if target_template is None:
+        warnings.append(f"template_id '{template_id}' not found")
+        phrases_dicts = [_phrase_to_dict(p) for p in base_phrases]
+        return {
+            "sentence": sentence_clean,
+            "phrases": phrases_dicts,
+            "warnings": warnings,
+            "validation": {"severity": "PASS", "is_valid": True, "errors": [], "warnings": [], "infos": [], "auto_corrections": []},
+        }
+
+    # 3. 拼装新句
+    new_sentence = apply_template(target_phrase, target_template, sentence_clean)
+    if new_sentence == sentence_clean:
+        # 拼装失败(kind 不支持等)
+        warnings.append(f"apply_template failed for kind={target_template.kind}")
+        phrases_dicts = [_phrase_to_dict(p) for p in base_phrases]
+        return {
+            "sentence": sentence_clean,
+            "phrases": phrases_dicts,
+            "warnings": warnings,
+            "validation": {"severity": "PASS", "is_valid": True, "errors": [], "warnings": [], "infos": [], "auto_corrections": []},
+        }
+
+    # 4. 重跑 analyze
+    analyze_result = analyze(new_sentence)
+    new_phrases = analyze_result["phrases"]
+    new_warnings = analyze_result.get("warnings", [])
+    warnings.extend(new_warnings)
+
+    # 5. Validator
+    new_doc = nlp(new_sentence)
+    validation_rep = validator.validate(new_sentence, new_doc, new_phrases)
+    validation_dict = {
+        "severity": validation_rep.severity,
+        "is_valid": validation_rep.is_valid,
+        "errors": validation_rep.errors,
+        "warnings": validation_rep.warnings,
+        "infos": validation_rep.infos,
+        "auto_corrections": validation_rep.auto_corrections,
+    }
+
+    # 6. phrases 转 dict
+    phrases_dicts = [_phrase_to_dict(p) for p in new_phrases]
+
+    return {
+        "sentence": new_sentence,
+        "phrases": phrases_dicts,
+        "warnings": warnings,
+        "validation": validation_dict,
+    }
+
+
+def _phrase_to_dict(p: Any) -> Dict[str, Any]:
+    """把 PhraseNode dataclass 转 dict(供 Pydantic PhraseNodeInfo 消费)。
+
+    注:candidates 在 analyze() 时已填 dict 列表,这里直接透传。
+    """
+    return {
+        "id": p.id,
+        "type": p.type,
+        "text": p.text,
+        "head_token_text": p.head_token_text,
+        "head_pos": p.head_pos,
+        "syntactic_role": p.syntactic_role,
+        "span": list(p.span),
+        "features": p.features,
+        "parent_id": p.parent_id,
+        "children_ids": list(p.children_ids),
+        "is_expandable": p.is_expandable,
+        "candidates": p.candidates,
+    }
+
+
+__all__ = ["analyze", "apply_template", "apply", "_phrase_to_dict"]
