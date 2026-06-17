@@ -422,3 +422,37 @@ def test_validator_severity_infos_field():
     rep = _validate("I like dogs.")
     assert hasattr(rep, "infos")
     assert rep.infos == []
+
+
+# ----------------------------- M3a+1.6 Pydantic 模型 -----------------------------
+
+def test_apply_request_validation():
+    """ApplyRequest 必填字段校验。"""
+    from grammar_engine.models import ApplyRequest
+    from pydantic import ValidationError
+
+    # 缺字段
+    try:
+        ApplyRequest()
+        assert False, "应抛 ValidationError"
+    except ValidationError:
+        pass
+
+    # 完整字段
+    req = ApplyRequest(sentence="I like dogs.", phrase_id="p2", template_id="tpl_adj_cute", mode="offline")
+    assert req.sentence == "I like dogs."
+    assert req.phrase_id == "p2"
+
+
+def test_apply_response_shape():
+    """ExpansionApplyResponse 响应 schema。"""
+    from grammar_engine.models import ExpansionApplyResponse, ValidationReport
+
+    resp = ExpansionApplyResponse(
+        sentence="I like cute dogs.",
+        phrases=[],
+        warnings=[],
+        validation=ValidationReport(severity="PASS", is_valid=True),
+    )
+    assert resp.sentence == "I like cute dogs."
+    assert resp.validation.severity == "PASS"

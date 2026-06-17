@@ -1,6 +1,6 @@
 """数据模型定义 - Pydantic schemas"""
 
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Dict
 from pydantic import BaseModel, Field
 from enum import Enum
 
@@ -270,3 +270,40 @@ class ExpansionAnalyzeResponse(BaseModel):
     sentence: str
     phrases: List[PhraseNodeInfo]
     warnings: List[str] = []
+
+
+# ===================== 句扩展 (Expansion) Apply 模型 — M3a+1 =====================
+# spec §2.1:响应只含 sentence / phrases / warnings / validation 四字段,不含 quota/version_id/session_id。
+
+class Severity(str, Enum):
+    """Validator severity 4 级"""
+    PASS = "PASS"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+
+
+class ValidationReport(BaseModel):
+    """M3a+1 ValidationReport(BaseModel 版,与 dataclass 区分开)"""
+    severity: Severity = Severity.PASS
+    is_valid: bool = True
+    errors: List[str] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list)
+    infos: List[str] = Field(default_factory=list)
+    auto_corrections: List[Dict[str, str]] = Field(default_factory=list)
+
+
+class ApplyRequest(BaseModel):
+    """apply 请求体"""
+    sentence: str
+    phrase_id: str
+    template_id: str
+    mode: Literal["offline", "local_ai", "cloud_ai"] = "offline"
+
+
+class ExpansionApplyResponse(BaseModel):
+    """apply 响应体(spec §2.1:只含四字段)"""
+    sentence: str
+    phrases: List[PhraseNodeInfo]
+    warnings: List[str] = Field(default_factory=list)
+    validation: ValidationReport
