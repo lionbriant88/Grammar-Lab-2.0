@@ -20,6 +20,34 @@ function App() {
     }
   }, [darkMode]);
 
+  // M3a+1.4: 键盘快捷键 - Undo/Redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 只在 expand 场景且有 history 时响应
+      if (activeScene !== 'expand' || state.expansionHistory.length === 0) return;
+
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+
+      // Undo: Cmd/Ctrl+Z (without Shift)
+      if (ctrlOrCmd && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        actions.undoExpansion();
+        return;
+      }
+
+      // Redo: Cmd/Ctrl+Shift+Z or Ctrl+Y
+      if ((ctrlOrCmd && e.key === 'z' && e.shiftKey) || (e.ctrlKey && e.key === 'y')) {
+        e.preventDefault();
+        actions.redoExpansion();
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeScene, state.expansionHistory.length, actions]);
+
   useEffect(() => {
     if (activeScene === 'anatomy' && state.currentAnalysis && !state.currentAnalysis.anatomy) {
       actions.analyzeAnatomy(state.currentAnalysis.sentence);
