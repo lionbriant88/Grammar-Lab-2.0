@@ -65,8 +65,23 @@ function App() {
             onApplyExpansion={(s, p, t) => actions.applyExpansion(s, p, t)}
             onUndoExpansion={() => actions.undoExpansion()}
             onRedoExpansion={() => actions.redoExpansion()}
+            onSelectVersion={(versionId) => {
+              // 跳到任意版本:找到对应 index,模拟 Undo/Redo 到那里
+              const idx = state.expansionHistory.findIndex((v) => v.version_id === versionId);
+              if (idx < 0) return;
+              if (idx < state.expansionCurrentIndex) {
+                for (let i = state.expansionCurrentIndex; i > idx; i--) {
+                  actions.undoExpansion();
+                }
+              } else if (idx > state.expansionCurrentIndex) {
+                for (let i = state.expansionCurrentIndex; i < idx; i++) {
+                  actions.redoExpansion();
+                }
+              }
+            }}
             expansionCurrentIndex={state.expansionCurrentIndex}
             expansionHistoryLength={state.expansionHistory.length}
+            expansionHistory={state.expansionHistory}
             isAnalyzing={state.isLoading}
             error={state.error}
           />

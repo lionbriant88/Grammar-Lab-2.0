@@ -4,6 +4,7 @@ import ExtensionLibrary from './ExtensionLibrary';
 import SentenceCanvas from './SentenceCanvas';
 import ExpansionInspector from './ExpansionInspector';
 import ExpansionTree from './ExpansionTree';
+import ExpansionTimeline from './ExpansionTimeline';
 
 export interface ExpandSceneProps {
   analysis: SentenceAnalysis | null;
@@ -14,6 +15,8 @@ export interface ExpandSceneProps {
   onRedoExpansion: () => void;  // M3a+1
   expansionCurrentIndex: number;  // M3a+1
   expansionHistoryLength: number;  // M3a+1
+  expansionHistory: import('../../types').SentenceVersion[];  // M3a+1.3:timeline 需要
+  onSelectVersion: (versionId: string) => void;  // M3a+1.3:点击 timeline 节点
   isAnalyzing: boolean;
   error: string | null;
 }
@@ -25,8 +28,9 @@ export default function ExpandScene({
   onApplyExpansion,
   onUndoExpansion,
   onRedoExpansion,
+  onSelectVersion,  // M3a+1.3
   expansionCurrentIndex,
-  expansionHistoryLength,
+  expansionHistory,  // M3a+1.3
   isAnalyzing,
   error,
 }: ExpandSceneProps) {
@@ -109,8 +113,6 @@ export default function ExpandScene({
 
   const phrases: PhraseNodeInfo[] = backend.phrases;
   const selectedPhrase = highlightedId ? phrases.find((p) => p.id === highlightedId) ?? null : null;
-  const canUndo = expansionCurrentIndex > 0;
-  const canRedo = expansionCurrentIndex < expansionHistoryLength - 1;
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -155,30 +157,14 @@ export default function ExpandScene({
         </div>
       </div>
 
-      {/* 占位 Undo/Redo(M3a+1.4 替换为 timeline 之外,简单按钮先保留) */}
-      <div className={`flex items-center gap-2 mt-4 text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-        <button
-          type="button"
-          disabled={!canUndo}
-          onClick={onUndoExpansion}
-          className={`px-2 py-1 rounded ${
-            canUndo ? darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100' : 'opacity-50 cursor-not-allowed'
-          }`}
-        >
-          ↶ 撤销
-        </button>
-        <button
-          type="button"
-          disabled={!canRedo}
-          onClick={onRedoExpansion}
-          className={`px-2 py-1 rounded ${
-            canRedo ? darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100' : 'opacity-50 cursor-not-allowed'
-          }`}
-        >
-          ↷ 重做
-        </button>
-        <span>已应用 {expansionCurrentIndex} 个扩展</span>
-      </div>
+      <ExpansionTimeline
+        versions={expansionHistory}
+        currentIndex={expansionCurrentIndex}
+        darkMode={darkMode}
+        onSelectVersion={onSelectVersion}
+        onUndo={onUndoExpansion}
+        onRedo={onRedoExpansion}
+      />
 
       {backend.warnings.length > 0 && (
         <p className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
