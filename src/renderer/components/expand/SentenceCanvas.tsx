@@ -5,13 +5,14 @@ import {
   featuresToBadges,
   getPhraseLabel,
 } from '../../utils/phraseColor';
+import { computeQuotas, type QuotaMap } from '../../utils/expansionQuota';
+
+export type VisualState = 'default' | 'expandable' | 'selected' | 'extended';
 
 export interface SentenceCanvasProps {
   phrases: PhraseNodeInfo[];
   darkMode: boolean;
-  /** 当前展开 [+] 菜单的短语 id(null=无) */
   menuOpenFor: string | null;
-  /** 树上某 kind 叶子被点 → 高亮对应短语 [+] */
   highlightedId: string | null;
   onToggleMenu: (phraseId: string) => void;
 }
@@ -23,6 +24,8 @@ export default function SentenceCanvas({
   highlightedId,
   onToggleMenu,
 }: SentenceCanvasProps) {
+  const quotaMap = computeQuotas(phrases);
+
   return (
     <div
       className={`p-6 rounded-2xl border ${
@@ -45,6 +48,7 @@ export default function SentenceCanvas({
             darkMode={darkMode}
             isOpen={menuOpenFor === p.id}
             isHighlighted={highlightedId === p.id}
+            quotaMap={quotaMap}
             onToggle={() => onToggleMenu(p.id)}
           />
         ))}
@@ -60,20 +64,13 @@ export default function SentenceCanvas({
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <LegendDot darkMode={darkMode} label="可扩展" dot="bg-blue-400" />
         <LegendDot darkMode={darkMode} label="不可扩展" dot={darkMode ? 'bg-slate-600' : 'bg-slate-300'} />
+        <LegendDot darkMode={darkMode} label="已扩展" dot="bg-amber-400" />
       </div>
     </div>
   );
 }
 
-function LegendDot({
-  darkMode,
-  label,
-  dot,
-}: {
-  darkMode: boolean;
-  label: string;
-  dot: string;
-}) {
+function LegendDot({ darkMode, label, dot }: { darkMode: boolean; label: string; dot: string }) {
   return (
     <div className="flex items-center gap-1.5">
       <span className={`inline-block w-3 h-3 rounded-full ${dot}`} />
@@ -82,24 +79,38 @@ function LegendDot({
   );
 }
 
+function getVisualState(phrase: PhraseNodeInfo, quotaMap: QuotaMap, selectedId: string | null): VisualState {
+  if (!phrase.is_expandable) return 'default';
+  if (phrase.id === selectedId) return 'selected';
+  const phraseQuota = quotaMap[phrase.id];
+  if (phraseQuota) {
+    const hasAnyUsed = Object.values(phraseQuota).some((q) => q.used > 0);
+    if (hasAnyUsed) return 'extended';
+  }
+  return 'expandable';
+}
+
 function PhraseCard({
   phrase,
   darkMode,
   isOpen,
   isHighlighted,
+  quotaMap,
   onToggle,
 }: {
   phrase: PhraseNodeInfo;
   darkMode: boolean;
   isOpen: boolean;
   isHighlighted: boolean;
+  quotaMap: QuotaMap;
   onToggle: () => void;
 }) {
   const type = phrase.type as PhraseType;
   const featureBadges = featuresToBadges(type, phrase.features);
+  const visualState = getVisualState(phrase, quotaMap, isHighlighted ? phrase.id : null);
 
-  // 不可扩展 → 灰显(opacity-50),不可点
-  if (!phrase.is_expandable) {
+  // 不可扩展 → 灰显
+  if (visualState === 'default' || !phrase.is_expandable) {
     return (
       <div
         className={`group relative rounded-xl border px-3 py-2 opacity-50 select-none ${
@@ -111,7 +122,13 @@ function PhraseCard({
     );
   }
 
-  // 可扩展 → 高亮描边(蓝)+ 绿点 + [+]
+  // 边框颜色按 visualState
+  const borderClass = (() => {
+    if (visualState === 'selected') return darkMode ? 'border-emerald-400' : 'border-emerald-500';
+    return darkMode ? 'border-blue-400/70 hover:border-blue-400' : 'border-blue-400 hover:border-blue-500';
+  })();
+  const ringClass = visualState === 'selected' || isOpen ? 'ring-2 ring-emerald-400 -translate-y-0.5 shadow-md' : 'hover:-translate-y-0.5 hover:shadow-md';
+
   return (
     <button
       type="button"
@@ -119,17 +136,27 @@ function PhraseCard({
       className={[
         'group relative rounded-xl border px-3 py-2 transition-all text-left',
         'border-2',
-        darkMode ? 'border-blue-400/70 hover:border-blue-400' : 'border-blue-400 hover:border-blue-500',
-        isHighlighted ? 'ring-2 ring-blue-400 -translate-y-0.5 shadow-md' : 'hover:-translate-y-0.5 hover:shadow-md',
-        isOpen ? 'ring-2 ring-blue-400 -translate-y-0.5 shadow-md' : '',
+        borderClass,
+        ringClass,
         getPhraseColor(type, darkMode),
       ].join(' ')}
       title="点击查看可扩展项"
     >
-      {/* 右上角绿点(可扩展标识) */}
-      <span className="absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-slate-900" />
+      {/* 角标:extended → 金 ★,expandable/selected → 绿点 ● */}
+      {visualState === 'extended' ? (
+        <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-400 ring-2 ring-white dark:ring-slate-900 flex items-center justify-center text-[10px] font-bold text-white">
+          ★
+        </span>
+      ) : (
+        <span className="absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-slate-900" />
+      )}
+
       <PhraseBody phrase={phrase} type={type} darkMode={darkMode} featureBadges={featureBadges} expandable />
-      {/* [+] 按钮 */}
+
+      {/* Quota chip(左上角) */}
+      <QuotaChip phraseId={phrase.id} quotaMap={quotaMap} darkMode={darkMode} />
+
+      {/* 展开/收起文本 */}
       <span
         className={`mt-1.5 inline-flex items-center gap-0.5 text-xs font-bold ${
           darkMode ? 'text-blue-300' : 'text-blue-600'
@@ -139,6 +166,46 @@ function PhraseCard({
       </span>
     </button>
   );
+}
+
+function QuotaChip({ phraseId, quotaMap, darkMode }: { phraseId: string; quotaMap: QuotaMap; darkMode: boolean }) {
+  const phraseQuota = quotaMap[phraseId];
+  if (!phraseQuota) return null;
+  const entries = Object.entries(phraseQuota);
+  if (entries.length === 0) return null;
+  return (
+    <div className="absolute -top-1.5 -left-1.5 flex flex-wrap gap-0.5 max-w-[80px]">
+      {entries.map(([kind, q]) => {
+        const label = kindToLabel(kind);
+        return (
+          <span
+            key={kind}
+            className={`px-1 py-0 rounded text-[9px] font-mono ${
+              q.reached
+                ? 'bg-amber-500 text-white'
+                : darkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-600'
+            }`}
+            title={`${label}: ${q.used}/${q.max}`}
+          >
+            {q.used}/{q.max} {label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function kindToLabel(kind: string): string {
+  if (kind === 'adjective') return 'adj';
+  if (kind === 'number') return 'num';
+  if (kind === 'prepositional_phrase') return 'pp';
+  if (kind === 'relative_clause') return 'relcl';
+  if (kind === 'adverb') return 'adv';
+  if (kind === 'modal') return 'modal';
+  if (kind === 'perfect') return 'perf';
+  if (kind === 'progressive') return 'prog';
+  if (kind === 'degree_adverb') return 'deg';
+  return kind;
 }
 
 function PhraseBody({
@@ -157,12 +224,7 @@ function PhraseBody({
   return (
     <>
       <div className="flex items-center gap-1.5 mb-1">
-        <span
-          className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold tracking-wide ${getPhraseBadge(
-            type,
-            darkMode
-          )}`}
-        >
+        <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold tracking-wide ${getPhraseBadge(type, darkMode)}`}>
           {type}
         </span>
         {featureBadges.map((tag) => (
