@@ -12,7 +12,6 @@ function App() {
   const [inputText, setInputText] = useState('I usually get up at seven every morning.');
   const [state, actions] = useAppState();
 
-  // 暗黑模式切换
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
@@ -21,14 +20,12 @@ function App() {
     }
   }, [darkMode]);
 
-  // 切到句剖析场景且该句尚未分析过句剖析时,自动拉取 anatomy 数据
   useEffect(() => {
     if (activeScene === 'anatomy' && state.currentAnalysis && !state.currentAnalysis.anatomy) {
       actions.analyzeAnatomy(state.currentAnalysis.sentence);
     }
   }, [activeScene, state.currentAnalysis, actions]);
 
-  // 切到句扩展场景且该句尚未分析过句扩展时,自动拉取 expansion 数据(M3a 只读)
   useEffect(() => {
     if (activeScene === 'expand' && state.currentAnalysis && !state.currentAnalysis.expansion) {
       actions.analyzeExpansion(state.currentAnalysis.sentence);
@@ -37,11 +34,9 @@ function App() {
 
   const handleAnalyze = () => {
     actions.analyzeSentence(inputText);
-    // 句剖析场景下,同步拉取 anatomy(基于当前输入框句子)
     if (activeScene === 'anatomy') {
       actions.analyzeAnatomy(inputText);
     }
-    // 句扩展场景下,同步拉取 expansion
     if (activeScene === 'expand') {
       actions.analyzeExpansion(inputText);
     }
@@ -67,6 +62,11 @@ function App() {
             analysis={state.currentAnalysis}
             darkMode={darkMode}
             onAnalyzeExpansion={(s) => actions.analyzeExpansion(s)}
+            onApplyExpansion={(s, p, t) => actions.applyExpansion(s, p, t)}
+            onUndoExpansion={() => actions.undoExpansion()}
+            onRedoExpansion={() => actions.redoExpansion()}
+            expansionCurrentIndex={state.expansionCurrentIndex}
+            expansionHistoryLength={state.expansionHistory.length}
             isAnalyzing={state.isLoading}
             error={state.error}
           />
