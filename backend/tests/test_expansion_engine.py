@@ -193,9 +193,10 @@ def _validate(sentence):
 
 
 def test_validator_subject_verb_agreement_invalid():
-    """He like dogs. → invalid,auto_corrections 含 like→likes。"""
+    """He like dogs. → severity=WARNING(auto_corrections 含 like→likes),is_valid=True(非阻断)。"""
     rep = _validate("He like dogs.")
-    assert rep.is_valid is False
+    assert rep.severity == "WARNING"
+    assert rep.is_valid is True  # M3a+1:WARNING 非 ERROR → True(非阻断)
     corr = next((c for c in rep.auto_corrections if c["from"] == "like"), None)
     assert corr is not None and corr["to"] == "likes"
 
@@ -397,3 +398,27 @@ def test_apply_template_degree_adverb_unit():
 
     new_sentence = apply_template(fake_phrase, tpl, "The dog is cute.")
     assert new_sentence == "The dog is very cute."
+
+
+# ----------------------------- M3a+1.5 Validator severity -----------------------------
+
+def test_validator_severity_warning():
+    """触发主谓一致后 severity == WARNING(非阻断)。"""
+    rep = _validate("He like dogs.")
+    assert rep.severity == "WARNING"
+    assert rep.is_valid is True  # 兼容旧字段:WARNING 非 ERROR → True
+    assert len(rep.auto_corrections) >= 1
+
+
+def test_validator_severity_pass_default():
+    """无问题时 severity == PASS。"""
+    rep = _validate("I like dogs.")
+    assert rep.severity == "PASS"
+    assert rep.is_valid is True
+
+
+def test_validator_severity_infos_field():
+    """ValidationReport 有 infos 字段(可空)。"""
+    rep = _validate("I like dogs.")
+    assert hasattr(rep, "infos")
+    assert rep.infos == []

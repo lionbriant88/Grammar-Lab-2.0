@@ -1,28 +1,31 @@
 """扩展验证器 (Expansion Validator) — 渲染前验证语法正确性
 
-spec §2.0 原则 #9:Validate every expansion before rendering。
-spec §2.5:M3a **只实现主谓一致**(有实现 + 测试),其余 4 项 **签名齐 / 返回 PASS**
-(为 M3b/M3c 接入预留)。
-
-**关键决策(调整精神)**:Validator 直接读 **短语特征槽**(§2.2 的 PhraseNode.features),
-不重新做 token 级句法分析。主谓一致检查从 "在 token 序列里找主谓" 变成
-"读 subject NP 的 number/person + predicate VP 的 tense"。
+M3a+1:Validator 升级为 4 级 severity 包装(PASS/INFO/WARNING/ERROR),但仍顾问非权威。
+- /apply 永远返回 200(由 endpoint 决定,不是 validator 决定)
+- severity 反映问题严重程度,不阻断提交
+- 旧 is_valid 字段保留:severity=="ERROR" → False,否则 True
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Literal
 
 from .phrase_segmenter import PhraseNode
+
+# M3a+1:severity 4 级
+Severity = Literal["PASS", "INFO", "WARNING", "ERROR"]
+SEVERITY_ORDER = {"PASS": 0, "INFO": 1, "WARNING": 2, "ERROR": 3}
 
 
 @dataclass
 class ValidationReport:
-    """单项校验结果。"""
+    """单项校验结果(M3a+1 加 severity + infos)。"""
 
+    severity: Severity = "PASS"
     is_valid: bool = True
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
+    infos: List[str] = field(default_factory=list)
     auto_corrections: List[Dict[str, str]] = field(default_factory=list)
 
 
@@ -45,12 +48,18 @@ def validate(sentence: str, doc: Any, phrases: List[PhraseNode]) -> ValidationRe
 
 def _merge_reports(reports: List[ValidationReport]) -> ValidationReport:
     merged = ValidationReport()
+    max_sev = "PASS"
     for r in reports:
-        if not r.is_valid:
-            merged.is_valid = False
+        sev_rank = SEVERITY_ORDER.get(r.severity, 0)
+        max_rank = SEVERITY_ORDER.get(max_sev, 0)
+        if sev_rank > max_rank:
+            max_sev = r.severity
         merged.errors.extend(r.errors)
         merged.warnings.extend(r.warnings)
+        merged.infos.extend(r.infos)
         merged.auto_corrections.extend(r.auto_corrections)
+    merged.severity = max_sev
+    merged.is_valid = max_sev != "ERROR"
     return merged
 
 
@@ -114,6 +123,7 @@ def validate_subject_verb_agreement(
         return report  # 已带 -s / 不规则 / 情态型,无需修正
 
     corrected = _add_third_person_s(head)
+    report.severity = "WARNING"  # ← 新增
     report.is_valid = False
     report.errors.append(
         f"主谓不一致:主语 '{subject_np.text}' 为第三人称单数,"
@@ -161,28 +171,28 @@ def validate_tense_consistency(
     sentence: str, doc: Any, phrases: List[PhraseNode]
 ) -> ValidationReport:
     """M3b 占位。"""
-    return ValidationReport(True, [], [], [])
+    return ValidationReport()
 
 
 def validate_clause_completeness(
     sentence: str, doc: Any, phrases: List[PhraseNode]
 ) -> ValidationReport:
     """M3c 占位。"""
-    return ValidationReport(True, [], [], [])
+    return ValidationReport()
 
 
 def validate_non_finite_legality(
     sentence: str, doc: Any, phrases: List[PhraseNode]
 ) -> ValidationReport:
     """M3c 占位。"""
-    return ValidationReport(True, [], [], [])
+    return ValidationReport()
 
 
 def validate_relative_pronoun_match(
     sentence: str, doc: Any, phrases: List[PhraseNode]
 ) -> ValidationReport:
     """M3c 占位。"""
-    return ValidationReport(True, [], [], [])
+    return ValidationReport()
 
 
 __all__ = [
