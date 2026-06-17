@@ -5,15 +5,18 @@ export interface ExtensionMenuProps {
   darkMode: boolean;
   /** 关闭浮层 */
   onClose: () => void;
+  /** 选中模板 → 触发 applyExpansion(传入 templateId)。M3a+1:由父组件 (ExpandScene) 传 onApply。 */
+  onApply: (templateId: string) => void;
+  /** 是否正在 apply 中(显示 loading) */
+  isApplying: boolean;
 }
 
 /**
- * [+] 浮层:列出该短语的可扩展候选(kind 分组 + 模板网格)。
- * M3a 只读:「应用」按钮 disabled + tooltip(提交功能 M3a+1 开放)。
+ * [+] 浮层:M3a+1.2 起可点 chip 直接 apply(应用扩展按钮 = 单个 chip 即应用)。
+ * M3a+1.3 起,该浮层被重写为 ExpansionInspector.tsx;此文件保留以兼容回退。
  */
-export default function ExtensionMenu({ phrase, darkMode, onClose }: ExtensionMenuProps) {
+export default function ExtensionMenu({ phrase, darkMode, onClose, onApply, isApplying }: ExtensionMenuProps) {
   const available = phrase.candidates.filter((c) => c.available);
-  const locked = phrase.candidates.filter((c) => !c.available);
 
   return (
     <div
@@ -41,53 +44,35 @@ export default function ExtensionMenu({ phrase, darkMode, onClose }: ExtensionMe
 
       <div className="max-h-72 overflow-y-auto space-y-3 pr-0.5">
         {available.map((c) => (
-          <KindSection key={c.kind} candidate={c} darkMode={darkMode} />
+          <KindSection
+            key={c.kind}
+            candidate={c}
+            darkMode={darkMode}
+            isApplying={isApplying}
+            onSelect={(templateId) => onApply(templateId)}
+          />
         ))}
         {available.length === 0 && (
           <p className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
             该短语暂无可应用的词级扩展。
           </p>
         )}
-
-        {locked.length > 0 && (
-          <div className={`pt-2 border-t ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
-            <p className={`text-[10px] uppercase tracking-wider mb-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-              即将开放
-            </p>
-            <div className="flex flex-wrap gap-1">
-              {locked.map((c) => (
-                <span
-                  key={c.kind}
-                  className={`px-1.5 py-0.5 rounded text-[10px] ${
-                    darkMode ? 'bg-slate-700/50 text-slate-500' : 'bg-slate-100 text-slate-400'
-                  }`}
-                >
-                  {c.kind_label_cn}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 底部提示:M3a 不做提交 */}
-      <div className={`mt-3 pt-2 border-t ${darkMode ? 'border-slate-700' : 'border-slate-100'}`}>
-        <button
-          type="button"
-          disabled
-          title="提交扩展功能将在 M3a+1 开放"
-          className={`w-full px-3 py-1.5 rounded-lg text-xs font-medium cursor-not-allowed ${
-            darkMode ? 'bg-slate-700/60 text-slate-500' : 'bg-slate-100 text-slate-400'
-          }`}
-        >
-          应用扩展(M3a+1 开放)
-        </button>
       </div>
     </div>
   );
 }
 
-function KindSection({ candidate, darkMode }: { candidate: ExpansionCandidate; darkMode: boolean }) {
+function KindSection({
+  candidate,
+  darkMode,
+  isApplying,
+  onSelect,
+}: {
+  candidate: ExpansionCandidate;
+  darkMode: boolean;
+  isApplying: boolean;
+  onSelect: (templateId: string) => void;
+}) {
   return (
     <div>
       <div className="flex items-center gap-1.5 mb-1.5">
@@ -104,10 +89,19 @@ function KindSection({ candidate, darkMode }: { candidate: ExpansionCandidate; d
       </div>
       <div className="grid grid-cols-2 gap-1.5">
         {candidate.templates.map((t) => (
-          <div
+          <button
             key={t.template_id}
-            className={`rounded-lg border px-2 py-1.5 ${
-              darkMode ? 'bg-slate-700/40 border-slate-600' : 'bg-slate-50 border-slate-200'
+            type="button"
+            disabled={isApplying}
+            onClick={() => onSelect(t.template_id)}
+            className={`rounded-lg border px-2 py-1.5 text-left transition-all ${
+              isApplying
+                ? darkMode
+                  ? 'bg-slate-700/30 border-slate-700 cursor-not-allowed opacity-50'
+                  : 'bg-slate-50 border-slate-200 cursor-not-allowed opacity-50'
+                : darkMode
+                ? 'bg-slate-700/40 border-slate-600 hover:bg-slate-600/60 hover:border-blue-400'
+                : 'bg-slate-50 border-slate-200 hover:bg-blue-50 hover:border-blue-400'
             }`}
           >
             <div className={`text-sm font-semibold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
@@ -116,7 +110,7 @@ function KindSection({ candidate, darkMode }: { candidate: ExpansionCandidate; d
             <div className={`text-[10px] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               → {t.preview}
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>
