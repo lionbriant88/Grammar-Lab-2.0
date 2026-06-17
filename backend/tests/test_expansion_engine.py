@@ -360,3 +360,40 @@ def test_apply_template_adverb_after_modal():
 
     new_sentence = apply_template(vp_like, tpl, "She would like it.")
     assert new_sentence == "She would really like it."
+
+
+def test_apply_template_degree_adverb_to_adjp():
+    """apply_template 给 ADJP 套 degree_adverb — 插到 head 前。"""
+    from grammar_engine.expansion_engine import apply_template
+    from grammar_engine.expansion_templates import get_template_by_id
+    from grammar_engine.phrase_segmenter import segment
+    from grammar_engine.nlp_loader import nlp_loader
+
+    doc = nlp_loader.get()("The dog is cute.")
+    phrases = segment(doc)
+    # M3a 暂未实现 ADJP 短语识别,可能识别为 ADJP=None
+    # 若识别不出 ADJP,改测其他方式
+    # 此测试先跳过,任务 5 再补 — 但若 ADJP 已识别则通过
+    adjp = next((p for p in phrases if p.type == "ADJP"), None)
+    if adjp is None:
+        pytest.skip("M3a ADJP 识别未实现,任务 5 边界测试暂跳过")
+    tpl = get_template_by_id("tpl_dadv_very")
+    new_sentence = apply_template(adjp, tpl, "The dog is cute.")
+    assert new_sentence == "The dog is very cute."
+
+
+def test_apply_template_degree_adverb_unit():
+    """unit 测试:apply_template 对 degree_adverb kind 的拼接(模拟 head 文本)。"""
+    from grammar_engine.expansion_engine import apply_template
+    from grammar_engine.phrase_segmenter import PhraseNode
+    from grammar_engine.expansion_templates import Template
+
+    # 模拟 ADJP 节点
+    fake_phrase = PhraseNode(
+        id="fake", type="ADJP", text="cute", head_token_text="cute",
+        head_pos="ADJ", syntactic_role="other", span=(0, 4),
+    )
+    tpl = Template("degree_adverb", "tpl_dadv_very", "very", "ADV", "intensifier", "cute")
+
+    new_sentence = apply_template(fake_phrase, tpl, "The dog is cute.")
+    assert new_sentence == "The dog is very cute."

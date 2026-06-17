@@ -180,6 +180,15 @@ def apply_template(phrase: Any, template: Any, sentence: str) -> str:
         new_sentence = sentence[:insert_pos].rstrip() + " " + template.surface + " " + sentence[insert_pos:].lstrip()
         return new_sentence
 
+    if template.kind == "degree_adverb":
+        head = phrase.head_token_text
+        head_idx = sentence.find(head)
+        if head_idx < 0:
+            return sentence
+        before = sentence[:head_idx].rstrip()
+        new_sentence = before + " " + template.surface + " " + sentence[head_idx:].lstrip()
+        return new_sentence
+
     return sentence
 
 
