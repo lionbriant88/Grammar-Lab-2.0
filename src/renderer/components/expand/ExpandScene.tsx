@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { SentenceAnalysis, PhraseNodeInfo } from '../../types';
 import ExtensionLibrary from './ExtensionLibrary';
 import SentenceCanvas from './SentenceCanvas';
-import ExtensionMenu from './ExtensionMenu';
+import ExpansionInspector from './ExpansionInspector';
 import ExpansionTree from './ExpansionTree';
 
 export interface ExpandSceneProps {
@@ -32,12 +32,10 @@ export default function ExpandScene({
 }: ExpandSceneProps) {
   const backend = analysis?.expansion?.backend;
 
-  const [menuOpenFor, setMenuOpenFor] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [isApplying, setIsApplying] = useState(false);
 
   useEffect(() => {
-    setMenuOpenFor(null);
     setHighlightedId(null);
   }, [backend]);
 
@@ -47,34 +45,22 @@ export default function ExpandScene({
     }
   }, [analysis, isAnalyzing, onAnalyzeExpansion]);
 
-  const handleToggleMenu = useCallback((phraseId: string) => {
-    setMenuOpenFor((cur) => (cur === phraseId ? null : phraseId));
+  const handleSelectPhrase = useCallback((phraseId: string) => {
     setHighlightedId(phraseId);
   }, []);
 
-  const handleSelectPhraseFromTree = useCallback((phraseId: string) => {
-    setHighlightedId(phraseId);
-    setMenuOpenFor(phraseId);
-  }, []);
-
-  const handleCloseMenu = useCallback(() => {
-    setMenuOpenFor(null);
-  }, []);
-
-  // M3a+1:apply handler
   const handleApply = useCallback(async (phraseId: string, templateId: string) => {
     if (!backend) return;
     setIsApplying(true);
     try {
       await onApplyExpansion(backend.sentence, phraseId, templateId);
-      setMenuOpenFor(null);
       setHighlightedId(phraseId);
     } finally {
       setIsApplying(false);
     }
   }, [backend, onApplyExpansion]);
 
-  // 空态 / loading / error / warnings 分支保持 M3a 不变
+  // 空态 / loading / error / warnings 分支保持 M3a
   if (!analysis) {
     return (
       <Centered darkMode={darkMode}>
@@ -122,19 +108,18 @@ export default function ExpandScene({
   if (!backend) return null;
 
   const phrases: PhraseNodeInfo[] = backend.phrases;
-  const openPhrase = menuOpenFor ? phrases.find((p) => p.id === menuOpenFor) ?? null : null;
-
+  const selectedPhrase = highlightedId ? phrases.find((p) => p.id === highlightedId) ?? null : null;
   const canUndo = expansionCurrentIndex > 0;
   const canRedo = expansionCurrentIndex < expansionHistoryLength - 1;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between -mb-2">
         <h2 className={`text-base font-bold ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
           🧱 句扩展
         </h2>
         <span className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-          写路径 · M3a+1.2
+          写路径 · M3a+1.3
         </span>
       </div>
 
@@ -143,25 +128,20 @@ export default function ExpandScene({
           <ExtensionLibrary darkMode={darkMode} />
         </div>
 
-        <div className="col-span-12 lg:col-span-5">
-          <div className="relative">
-            <SentenceCanvas
-              phrases={phrases}
-              darkMode={darkMode}
-              menuOpenFor={menuOpenFor}
-              highlightedId={highlightedId}
-              onToggleMenu={handleToggleMenu}
-            />
-            {openPhrase && (
-              <ExtensionMenu
-                phrase={openPhrase}
-                darkMode={darkMode}
-                onClose={handleCloseMenu}
-                onApply={(templateId) => handleApply(openPhrase.id, templateId)}
-                isApplying={isApplying}
-              />
-            )}
-          </div>
+        <div className="col-span-12 lg:col-span-5 space-y-4">
+          <SentenceCanvas
+            phrases={phrases}
+            darkMode={darkMode}
+            menuOpenFor={null}
+            highlightedId={highlightedId}
+            onToggleMenu={handleSelectPhrase}
+          />
+          <ExpansionInspector
+            phrase={selectedPhrase}
+            darkMode={darkMode}
+            onApply={(templateId) => highlightedId && handleApply(highlightedId, templateId)}
+            isApplying={isApplying}
+          />
         </div>
 
         <div className="col-span-12 lg:col-span-4">
@@ -169,22 +149,20 @@ export default function ExpandScene({
             sentence={backend.sentence}
             phrases={phrases}
             darkMode={darkMode}
-            onSelectPhrase={handleSelectPhraseFromTree}
+            onSelectPhrase={handleSelectPhrase}
             highlightedId={highlightedId}
           />
         </div>
       </div>
 
-      {/* M3a+1.2:底栏简单 Undo/Redo 占位(M3a+1.3 替换为 timeline) */}
+      {/* 占位 Undo/Redo(M3a+1.4 替换为 timeline 之外,简单按钮先保留) */}
       <div className={`flex items-center gap-2 mt-4 text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
         <button
           type="button"
           disabled={!canUndo}
           onClick={onUndoExpansion}
           className={`px-2 py-1 rounded ${
-            canUndo
-              ? darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'
-              : 'opacity-50 cursor-not-allowed'
+            canUndo ? darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100' : 'opacity-50 cursor-not-allowed'
           }`}
         >
           ↶ 撤销
@@ -194,9 +172,7 @@ export default function ExpandScene({
           disabled={!canRedo}
           onClick={onRedoExpansion}
           className={`px-2 py-1 rounded ${
-            canRedo
-              ? darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'
-              : 'opacity-50 cursor-not-allowed'
+            canRedo ? darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100' : 'opacity-50 cursor-not-allowed'
           }`}
         >
           ↷ 重做
