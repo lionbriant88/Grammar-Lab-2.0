@@ -615,6 +615,8 @@ Sentence: I like cute dogs.   |   短语: 3   |   可扩展: 2   |   State: Anal
 - 点击历史版本:Undo/Redo 直接跳到该版本(不调后端,改 currentIndex)
 - 上限 50 步:超出截断,头部不显示
 
+**分支语义(2026-06-17 确认)**:M3a+1 timeline 是**顺序累加视图**。如果用户从 v1 apply 了一个新模板,history[] 截断 v2/v3 后追加 v1'(cute dogs),timeline 只显示 v1 / v1' 两条(分支节点不并排显示)。分支可视化(树形 Version Tree)留 **M5**;M3a+1 仅通过 history 截断 + 追加实现分支语义,不画 UI。
+
 ### 4.7 Quota DFS 派生(关键逻辑)
 
 **Quota 是前端派生,绝不调后端**。`utils/expansionQuota.ts` 新增:
