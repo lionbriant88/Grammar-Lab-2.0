@@ -232,12 +232,29 @@ export function useAppState(): [AppState, AppActions] {
       // 更新 currentAnalysis(画布重画)
       setCurrentAnalysis((prev) => prev ? { ...prev, expansion: { backend: data } } : prev);
 
-      // 推入 history:截断 future + 追加
+      // 推入 history:截断 future + 追加 + 50步上限
       setExpansionHistory((prev) => {
-        const newHist = [...prev.slice(0, expansionCurrentIndex + 1), newVersion];
+        const truncated = prev.slice(0, expansionCurrentIndex + 1);
+        let newHist = [...truncated, newVersion];
+
+        // 50步上限:保留原句(index 0) + 最近49步
+        if (newHist.length > 50) {
+          const original = newHist[0];
+          const recent = newHist.slice(-49);
+          newHist = [original, ...recent];
+        }
+
         return newHist;
       });
-      setExpansionCurrentIndex((prev) => prev + 1);
+      setExpansionCurrentIndex((prev) => {
+        const truncated = expansionHistory.slice(0, prev + 1);
+        const wouldBe = truncated.length; // new index after append
+        // 如果触发了50步截断,新index = 50(原句+49步)
+        if (truncated.length + 1 > 50) {
+          return 50;
+        }
+        return wouldBe;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'apply 失败');
     } finally {
