@@ -90,6 +90,43 @@ export interface ExpansionBackend {
   warnings: string[];
 }
 
+// ===================== 句扩展 (Expansion) Apply 类型 — M3a+1 =====================
+// spec §3.2:history[] 数组每个元素的快照格式
+
+// 一次 apply 操作的元信息
+export interface ApplyActionSummary {
+  phrase_id: string;
+  phrase_text: string;
+  template_id: string;
+  template_surface: string;
+  kind: string;
+  kind_label_cn: string;
+}
+
+// 4 级 severity
+export type ValidationSeverity = 'PASS' | 'INFO' | 'WARNING' | 'ERROR';
+
+// 验证报告(对应后端 ValidationReport)
+export interface ValidationReport {
+  severity: ValidationSeverity;
+  is_valid: boolean;
+  errors: string[];
+  warnings: string[];
+  infos: string[];
+  auto_corrections: Array<{ from: string; to: string; reason: string }>;
+}
+
+// 一个 SentenceVersion 快照(history 数组里的一项)
+export interface SentenceVersion {
+  version_id: string;
+  sentence: string;
+  phrases: PhraseNodeInfo[];
+  warnings: string[];
+  validation: ValidationReport;
+  action_summary: ApplyActionSummary | null;
+  timestamp: number;
+}
+
 // 句子分析数据类型
 export interface SentenceAnalysis {
   sentence: string;
