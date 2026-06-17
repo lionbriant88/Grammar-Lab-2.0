@@ -9,6 +9,11 @@ export interface ExpandSceneProps {
   analysis: SentenceAnalysis | null;
   darkMode: boolean;
   onAnalyzeExpansion: (sentence: string) => void;
+  onApplyExpansion: (sentence: string, phraseId: string, templateId: string) => void;  // M3a+1
+  onUndoExpansion: () => void;  // M3a+1
+  onRedoExpansion: () => void;  // M3a+1
+  expansionCurrentIndex: number;  // M3a+1
+  expansionHistoryLength: number;  // M3a+1
   isAnalyzing: boolean;
   error: string | null;
 }
@@ -17,6 +22,11 @@ export default function ExpandScene({
   analysis,
   darkMode,
   onAnalyzeExpansion,
+  onApplyExpansion,
+  onUndoExpansion,
+  onRedoExpansion,
+  expansionCurrentIndex,
+  expansionHistoryLength,
   isAnalyzing,
   error,
 }: ExpandSceneProps) {
@@ -24,14 +34,13 @@ export default function ExpandScene({
 
   const [menuOpenFor, setMenuOpenFor] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [isApplying, setIsApplying] = useState(false);
 
-  // 新分析到来时重置本地交互态
   useEffect(() => {
     setMenuOpenFor(null);
     setHighlightedId(null);
   }, [backend]);
 
-  // 若 analysis 存在但 expansion 缺失,触发拉取(由 App 层也兜底)
   useEffect(() => {
     if (analysis && analysis.sentence && !analysis.expansion && !isAnalyzing) {
       onAnalyzeExpansion(analysis.sentence);
@@ -43,10 +52,8 @@ export default function ExpandScene({
     setHighlightedId(phraseId);
   }, []);
 
-  // 右栏点 kind 叶子 → 高亮中栏对应短语 [+](仅视觉联动,spec §4.2)
   const handleSelectPhraseFromTree = useCallback((phraseId: string) => {
     setHighlightedId(phraseId);
-    // 若该短语可扩展,自动展开菜单,让用户立即看到候选
     setMenuOpenFor(phraseId);
   }, []);
 
@@ -54,9 +61,20 @@ export default function ExpandScene({
     setMenuOpenFor(null);
   }, []);
 
-  // ---- 渲染分支 ----
+  // M3a+1:apply handler
+  const handleApply = useCallback(async (phraseId: string, templateId: string) => {
+    if (!backend) return;
+    setIsApplying(true);
+    try {
+      await onApplyExpansion(backend.sentence, phraseId, templateId);
+      setMenuOpenFor(null);
+      setHighlightedId(phraseId);
+    } finally {
+      setIsApplying(false);
+    }
+  }, [backend, onApplyExpansion]);
 
-  // 空态
+  // 空态 / loading / error / warnings 分支保持 M3a 不变
   if (!analysis) {
     return (
       <Centered darkMode={darkMode}>
@@ -66,7 +84,6 @@ export default function ExpandScene({
     );
   }
 
-  // loading
   if (isAnalyzing && !backend) {
     return (
       <Centered darkMode={darkMode}>
@@ -75,7 +92,6 @@ export default function ExpandScene({
     );
   }
 
-  // error
   if (error && !backend) {
     return (
       <div className="space-y-6 animate-fade-in">
@@ -88,7 +104,6 @@ export default function ExpandScene({
     );
   }
 
-  // 后端警告(空 phrases)
   if (backend && backend.phrases.length === 0) {
     return (
       <div className="space-y-6 animate-fade-in">
@@ -109,6 +124,9 @@ export default function ExpandScene({
   const phrases: PhraseNodeInfo[] = backend.phrases;
   const openPhrase = menuOpenFor ? phrases.find((p) => p.id === menuOpenFor) ?? null : null;
 
+  const canUndo = expansionCurrentIndex > 0;
+  const canRedo = expansionCurrentIndex < expansionHistoryLength - 1;
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between -mb-2">
@@ -116,17 +134,15 @@ export default function ExpandScene({
           🧱 句扩展
         </h2>
         <span className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-          只读预览 · 提交扩展将在 M3a+1 开放
+          写路径 · M3a+1.2
         </span>
       </div>
 
       <div className="grid grid-cols-12 gap-4 items-start">
-        {/* 左栏:扩展类型库(占位) */}
         <div className="col-span-12 lg:col-span-3">
           <ExtensionLibrary darkMode={darkMode} />
         </div>
 
-        {/* 中栏:句子画布 + [+] 浮层 */}
         <div className="col-span-12 lg:col-span-5">
           <div className="relative">
             <SentenceCanvas
@@ -137,12 +153,17 @@ export default function ExpandScene({
               onToggleMenu={handleToggleMenu}
             />
             {openPhrase && (
-              <ExtensionMenu phrase={openPhrase} darkMode={darkMode} onClose={handleCloseMenu} />
+              <ExtensionMenu
+                phrase={openPhrase}
+                darkMode={darkMode}
+                onClose={handleCloseMenu}
+                onApply={(templateId) => handleApply(openPhrase.id, templateId)}
+                isApplying={isApplying}
+              />
             )}
           </div>
         </div>
 
-        {/* 右栏:短语结构图(标题=短语结构图,非成分句法树) */}
         <div className="col-span-12 lg:col-span-4">
           <ExpansionTree
             sentence={backend.sentence}
@@ -152,6 +173,35 @@ export default function ExpandScene({
             highlightedId={highlightedId}
           />
         </div>
+      </div>
+
+      {/* M3a+1.2:底栏简单 Undo/Redo 占位(M3a+1.3 替换为 timeline) */}
+      <div className={`flex items-center gap-2 mt-4 text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+        <button
+          type="button"
+          disabled={!canUndo}
+          onClick={onUndoExpansion}
+          className={`px-2 py-1 rounded ${
+            canUndo
+              ? darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'
+              : 'opacity-50 cursor-not-allowed'
+          }`}
+        >
+          ↶ 撤销
+        </button>
+        <button
+          type="button"
+          disabled={!canRedo}
+          onClick={onRedoExpansion}
+          className={`px-2 py-1 rounded ${
+            canRedo
+              ? darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'
+              : 'opacity-50 cursor-not-allowed'
+          }`}
+        >
+          ↷ 重做
+        </button>
+        <span>已应用 {expansionCurrentIndex} 个扩展</span>
       </div>
 
       {backend.warnings.length > 0 && (
