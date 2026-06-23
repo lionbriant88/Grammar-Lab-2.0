@@ -4,6 +4,65 @@
 
 ---
 
+## 2026-06-23 M3c1 — Validation Layer 完善
+
+### 目标
+
+完善验证层，实现剩余 3 项浅层 Rule Validators + LanguageTool 集成，确保零崩溃保证。
+
+### 核心任务
+
+- ExternalServiceManager 基类 - 为未来外部服务（LanguageTool/Ollama/AI/TTS）复用设计
+- LanguageToolManager - 嵌入式服务器，后台异步启动，非阻塞
+- safe_execute() 韧性包装器 - 任何 validator 失败 → 降级为 WARNING → 继续
+- 3 项浅层 Rule Validators（故意保持 80% 覆盖，不追求完整）:
+  - clause_completeness: 从句完整性（缺主语/谓语）
+  - non_finite_legality: 非谓语合法性（to + base form, 动词模式数据库）
+  - relative_pronoun_match: 关系代词匹配（人/物 + who/which）
+- LanguageTool Validator #6 - 次级顾问（Grammar Engine 是唯一语法权威）
+- validate() 统一入口更新 - 6 项 validators 全部用 safe_execute 包装
+
+### 架构原则（M3c1 铁律）
+
+- **验证优先，生成其次** - 永不同时开发模板和验证器，验证层冻结后才做 M3c2-5 模板生成
+- **零崩溃保证** - 任何组件失败 → 降级 → 继续工作（safe_execute 捕获所有异常）
+- **Always HTTP 200** - 永不返回 500，Validator 是教师（advisory）非编译器（blocking）
+- **LanguageTool 次级顾问** - Grammar Engine 是唯一语法权威，LT 不可用时优雅降级为 INFO
+
+### 关键决策
+
+- **浅层 Rule Validators**: 故意保持简单（80% 常见错误覆盖），复杂情况留给 LanguageTool 和未来 AI Validators
+- **VERB_PATTERNS 数据库**: 100-300 个高频动词模式（enjoy+doing, want+to_do），不追求完整英语覆盖
+- **Severity 映射（保守）**: LanguageTool 的 GRAMMAR/MISSPELLING → WARNING, TYPOGRAPHY/STYLE → INFO
+- **非阻塞启动**: Backend 启动立即可用（不等 LanguageTool），LT 在后台线程启动（5-10 秒）
+- **降级测试优先**: 15% 测试覆盖专注于降级场景（server not started, timeout, crash, all validators fail）
+
+### 测试策略（80/15/5 金字塔）
+
+- 21 个单元测试（80%）: ExternalServiceManager, LanguageToolManager, safe_execute, 6 项 validators
+- 7 个降级测试（15%，最高优先级）: 验证所有失败场景返回 HTTP 200
+- 边缘情况（5%）: 集成到单元测试中
+
+### 踩坑/Gotchas
+
+- LanguageTool 的 check() 只接受 `sentence` 参数（不需要 doc/phrases），而其他 5 个 validators 接受 3 个参数
+- safe_execute 必须返回 `is_valid=True`（即使失败），确保永不阻断管道
+- LanguageTool 端口 8081 可能被占用，系统优雅降级不影响 Grammar Engine
+- spaCy 小模型对某些动词误标（如 `like` 误标为 ADP），Validator 通过 simple_present 兜底处理
+
+### 验证
+
+- pytest 60/60 通过（32 原有 + 28 M3c1）
+- 28 个 M3c1 测试全绿（21 单元 + 7 降级）
+- 零崩溃验证：所有降级场景返回 HTTP 200
+- Backend 启动验证：立即可用，不等 LanguageTool
+
+### 下一步
+
+- **M3c2-5**: relative/adverbial/noun clause 扩展模板生成（验证层已冻结，可放心推进）
+
+---
+
 ## 2026-06-17 M3a+1 — 句扩展写路径与视觉重塑
 
 [按倒序记]
