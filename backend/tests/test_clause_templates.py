@@ -1,4 +1,4 @@
-"""测试 clause_templates.py (M3c2)"""
+"""测试 clause_templates.py (M3c2 -> M3c3 更新)"""
 import pytest
 from grammar_engine.clause_templates import (
     RELATIVE_CLAUSE_TEMPLATES,
@@ -14,15 +14,15 @@ from grammar_engine.clause_templates import (
 # ===================== 定语从句模板测试 =====================
 
 def test_relative_clause_templates_count():
-    """定语从句模板数量（M3c2: 2个占位）"""
-    assert len(RELATIVE_CLAUSE_TEMPLATES) == 2
+    """定语从句模板数量（M3c3: 10个）"""
+    assert len(RELATIVE_CLAUSE_TEMPLATES) >= 10
 
 
 def test_relative_clause_who_template():
     """who + verb 模板"""
     template = RELATIVE_CLAUSE_TEMPLATES[0]
 
-    assert template.template_id == "tpl_rel_who_verb"
+    assert template.template_id == "tpl_rel_who_subj"
     assert template.clause_type == "relative"
     assert template.surface == "who <VERB>"
     assert len(template.slots) == 1
@@ -30,19 +30,19 @@ def test_relative_clause_who_template():
     assert template.slots[0].type == "VP"
     assert template.constraints["antecedent_type"] == "person"
     assert template.semantic_class == "person"
-    assert template.available is False  # M3c2 占位
+    assert template.available is True  # M3c3 开放
 
 
 def test_relative_clause_which_template():
     """which + verb 模板"""
     template = RELATIVE_CLAUSE_TEMPLATES[1]
 
-    assert template.template_id == "tpl_rel_which_verb"
+    assert template.template_id == "tpl_rel_which_subj"
     assert template.clause_type == "relative"
     assert template.surface == "which <VERB>"
     assert template.constraints["antecedent_type"] == "thing"
     assert template.semantic_class == "thing"
-    assert template.available is False
+    assert template.available is True  # M3c3 开放
 
 
 # ===================== 状语从句模板测试 =====================
@@ -115,8 +115,8 @@ def test_noun_clause_whether_template():
 # ===================== 统一接口测试 =====================
 
 def test_all_clause_templates_count():
-    """ALL_CLAUSE_TEMPLATES 包含所有模板"""
-    assert len(ALL_CLAUSE_TEMPLATES) == 6  # 2 + 2 + 2
+    """ALL_CLAUSE_TEMPLATES 包含所有模板（M3c3: 14个）"""
+    assert len(ALL_CLAUSE_TEMPLATES) == 14  # M3c3: 10 relative + 2 adverbial + 2 noun
 
 
 def test_all_clause_templates_unique_ids():
@@ -150,17 +150,17 @@ def test_get_clause_templates_by_type_invalid():
 
 
 def test_get_available_clause_templates_empty():
-    """M3c2: get_available_clause_templates 返回空列表"""
+    """M3c3: get_available_clause_templates 返回定语从句10个"""
     available = get_available_clause_templates()
-    assert available == []  # M3c2 所有模板 available=False
+    assert len(available) == 10  # M3c3: 定语从句已开放
 
 
 def test_get_template_by_id_found():
-    """get_template_by_id 找到模板"""
-    template = get_template_by_id("tpl_rel_who_verb")
+    """get_template_by_id 找到模板（M3c3: 使用新ID）"""
+    template = get_template_by_id("tpl_rel_who_subj")
 
     assert template is not None
-    assert template.template_id == "tpl_rel_who_verb"
+    assert template.template_id == "tpl_rel_who_subj"
 
 
 def test_get_template_by_id_not_found():
@@ -193,6 +193,9 @@ def test_all_templates_have_surface():
 
 
 def test_all_templates_m3c2_not_available():
-    """M3c2: 所有模板 available=False"""
+    """M3c3: 定语从句已开放，状语/名词性从句仍为 False"""
     for template in ALL_CLAUSE_TEMPLATES:
-        assert template.available is False, f"{template.template_id} should not be available in M3c2"
+        if template.clause_type == "relative":
+            assert template.available is True, f"{template.template_id} should be available in M3c3"
+        else:
+            assert template.available is False, f"{template.template_id} should not be available yet (M3c4/M3c5)"

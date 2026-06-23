@@ -48,9 +48,9 @@ def test_rule_completeness():
     adjp_rules = rules.get_rules_for_phrase("ADJP")
     assert "degree_adverb" in adjp_rules
 
-    # L1 已开放 kind 数量正确
+    # L1 已开放 kind 数量正确（M3c3: NP 包含 relative_clause）
     np_avail = rules.get_available_rules_for_phrase("NP")
-    assert set(np_avail) == {"adjective", "number"}
+    assert set(np_avail) == {"adjective", "number", "relative_clause"}
     vp_avail = rules.get_available_rules_for_phrase("VP")
     assert vp_avail == ["adverb"]
 
@@ -268,10 +268,10 @@ def test_spacy_unavailable_graceful(monkeypatch):
 # ----------------------------- 11. L2/L3 元数据 -----------------------------
 
 def test_kind_metadata_l2_l3():
-    """get_kind_metadata('relative_clause') → level=3, available=False。"""
+    """get_kind_metadata('relative_clause') → level=3, available=True (M3c3)。"""
     meta = rules.get_kind_metadata("relative_clause")
     assert meta["level"] == 3
-    assert meta["available"] is False
+    assert meta["available"] is True  # M3c3: 定语从句已开放
 
     meta2 = rules.get_kind_metadata("prepositional_phrase")
     assert meta2["level"] == 2

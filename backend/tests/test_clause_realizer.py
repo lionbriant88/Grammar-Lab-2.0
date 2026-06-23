@@ -151,18 +151,29 @@ def test_validate_constraints_empty():
 # ===================== RelativeClauseRealizer Tests =====================
 
 def test_relative_clause_realize():
-    """RelativeClauseRealizer.realize 正确实现"""
+    """RelativeClauseRealizer.realize 正确实现（M3c3: 需要先行词）"""
+    from grammar_engine.phrase_segmenter import PhraseNode
+
     template = ClauseTemplate(
         template_id="tpl_rel_who_verb",
         clause_type="relative",
         surface="who <VERB>",
-        slots=[Slot(name="verb", type="VP", required=True)]
+        slots=[Slot(name="verb", type="VP", required=True)],
+        constraints={"antecedent_type": "any"}  # M3c3: 添加约束（any = 不限制）
+    )
+
+    # M3c3: 提供有效的先行词
+    antecedent = PhraseNode(
+        id="p1", type="NP", text="the dog",
+        head_token_text="dog", head_pos="NOUN",
+        syntactic_role="subject", span=(0, 2),
+        features={"head_lemma": "dog"}
     )
 
     context = RealizationContext(
         original_sentence="The dog runs.",
         doc=None,
-        phrases=[],
+        phrases=[antecedent],
         target_phrase_id="p1"
     )
 
@@ -174,17 +185,28 @@ def test_relative_clause_realize():
 
 def test_relative_clause_realize_missing_required_slot():
     """RelativeClauseRealizer.realize 缺少必填槽位时抛出异常"""
+    from grammar_engine.phrase_segmenter import PhraseNode
+
     template = ClauseTemplate(
         template_id="tpl_test",
         clause_type="relative",
         surface="who <VERB>",
-        slots=[Slot(name="verb", type="VP", required=True)]
+        slots=[Slot(name="verb", type="VP", required=True)],
+        constraints={"antecedent_type": "any"}  # M3c3: 添加约束
+    )
+
+    # M3c3: 提供先行词
+    antecedent = PhraseNode(
+        id="p1", type="NP", text="test",
+        head_token_text="test", head_pos="NOUN",
+        syntactic_role="subject", span=(0, 1),
+        features={"head_lemma": "test"}
     )
 
     context = RealizationContext(
         original_sentence="test",
         doc=None,
-        phrases=[],
+        phrases=[antecedent],
         target_phrase_id="p1"
     )
 
