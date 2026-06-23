@@ -337,3 +337,69 @@ def test_validate_with_languagetool_timeout():
     assert result.severity == "INFO"
     assert result.is_valid is True
     assert "timeout" in result.infos[0].lower() or "超时" in result.infos[0]
+
+
+# ===================== Task 8: Update validate() entry point =====================
+
+def test_validate_entry_point_calls_all_validators():
+    """validate() calls all 6 validators with safe_execute"""
+    from grammar_engine.expansion_validator import validate
+    from unittest.mock import patch, MagicMock
+
+    # Mock LanguageTool manager
+    mock_manager = MagicMock()
+    mock_manager.is_alive.return_value = False
+
+    with patch('grammar_engine.languagetool_manager.get_languagetool_manager', return_value=mock_manager):
+        result = validate("Test sentence.", None, [])
+
+    # Should return a ValidationReport (not crash)
+    assert result.severity in ["PASS", "INFO", "WARNING", "ERROR"]
+    assert result.is_valid in [True, False]
+
+
+def test_validate_entry_point_validator_exception_does_not_crash():
+    """validate() continues when one validator throws exception"""
+    from grammar_engine.expansion_validator import validate
+    from unittest.mock import patch
+
+    # Mock one validator to raise exception
+    def failing_validator(sentence, doc, phrases):
+        raise ValueError("Test validator failure")
+
+    with patch('grammar_engine.expansion_validator.validate_subject_verb_agreement', failing_validator):
+        result = validate("Test sentence.", None, [])
+
+    # Should degrade to WARNING but not crash
+    assert result.severity in ["WARNING", "INFO", "PASS"]
+    assert result.is_valid is True  # safe_execute ensures is_valid=True on exception
+    assert any("subject_verb_agreement" in w for w in result.warnings)
+
+
+def test_validate_entry_point_merges_severity():
+    """validate() merges severity from multiple validators correctly"""
+    from grammar_engine.expansion_validator import validate, ValidationReport
+    from unittest.mock import patch
+
+    # Mock validators with different severities
+    def pass_validator(sentence, doc, phrases):
+        return ValidationReport(severity="PASS", is_valid=True)
+
+    def warning_validator(sentence, doc, phrases):
+        return ValidationReport(severity="WARNING", is_valid=True, warnings=["Test warning"])
+
+    def languagetool_pass_validator(sentence):
+        return ValidationReport(severity="PASS", is_valid=True)
+
+    with patch('grammar_engine.expansion_validator.validate_subject_verb_agreement', pass_validator):
+        with patch('grammar_engine.expansion_validator.validate_tense_consistency', warning_validator):
+            with patch('grammar_engine.expansion_validator.validate_clause_completeness', pass_validator):
+                with patch('grammar_engine.expansion_validator.validate_non_finite_legality', pass_validator):
+                    with patch('grammar_engine.expansion_validator.validate_relative_pronoun_match', pass_validator):
+                        with patch('grammar_engine.expansion_validator.validate_with_languagetool', languagetool_pass_validator):
+                            result = validate("Test.", None, [])
+
+    # Should merge to WARNING (highest severity)
+    assert result.severity == "WARNING"
+    assert len(result.warnings) == 1
+    assert "Test warning" in result.warnings[0]

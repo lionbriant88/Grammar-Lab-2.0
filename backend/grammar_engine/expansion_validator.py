@@ -70,16 +70,46 @@ def safe_execute(
 # ----------------------------- 统一入口 -----------------------------
 
 def validate(sentence: str, doc: Any, phrases: List[PhraseNode]) -> ValidationReport:
-    """5 项检查统一入口。M3a:第 1 项实现,2-5 占位。
+    """6 项检查统一入口（M3c1 完整版）。
+
+    M3c1 更新：
+    - 所有 6 项 validators 使用 safe_execute 包装
+    - Validator #6 (LanguageTool) 作为次级顾问
+    - 任何 validator 失败 → 降级为 WARNING → 继续
 
     phrases 是 phrase_segmenter.segment(doc) 的输出(含特征槽)。
     """
     reports = [
-        validate_subject_verb_agreement(sentence, doc, phrases),  # M3a 实现
-        validate_tense_consistency(sentence, doc, phrases),       # M3b 占位
-        validate_clause_completeness(sentence, doc, phrases),     # M3c 占位
-        validate_non_finite_legality(sentence, doc, phrases),     # M3c 占位
-        validate_relative_pronoun_match(sentence, doc, phrases),  # M3c 占位
+        safe_execute(
+            validate_subject_verb_agreement,
+            "subject_verb_agreement",
+            sentence, doc, phrases
+        ),
+        safe_execute(
+            validate_tense_consistency,
+            "tense_consistency",
+            sentence, doc, phrases
+        ),
+        safe_execute(
+            validate_clause_completeness,
+            "clause_completeness",
+            sentence, doc, phrases
+        ),
+        safe_execute(
+            validate_non_finite_legality,
+            "non_finite_legality",
+            sentence, doc, phrases
+        ),
+        safe_execute(
+            validate_relative_pronoun_match,
+            "relative_pronoun_match",
+            sentence, doc, phrases
+        ),
+        safe_execute(
+            validate_with_languagetool,
+            "languagetool",
+            sentence
+        ),
     ]
     return _merge_reports(reports)
 
