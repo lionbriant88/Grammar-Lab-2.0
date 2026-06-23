@@ -45,3 +45,6 @@ env/
 # Claude Code
 .superpowers/
 .claude/
+
+# Git worktrees
+.worktrees/
