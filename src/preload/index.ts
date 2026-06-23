@@ -9,8 +9,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('apply-expansion', sentence, phraseId, templateId),
   speakText: (text: string) => ipcRenderer.invoke('speak-text', text),
   copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text),
-  onDarkModeChange: (_callback: (isDark: boolean) => void) => {
-    // TODO: 实现主题监听
+  onDarkModeChange: (callback: (isDark: boolean) => void) => {
+    ipcRenderer.on('dark-mode-changed', (_event, isDark: boolean) => {
+      callback(isDark);
+    });
   }
 });
 

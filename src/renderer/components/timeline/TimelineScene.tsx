@@ -61,8 +61,14 @@ export default function TimelineScene({ analysis, darkMode }: TimelineSceneProps
           adverbials={adverbials}
           darkMode={darkMode}
           onAdverbialClick={(id) => {
-            // 高亮对应的时间轴节点（TODO: 实现）
-            console.log('Clicked adverbial:', id);
+            // 找到该时间状语关联的动词并高亮（基于时区匹配）
+            const clickedAdverbial = adverbials.find((a) => a.id === id);
+            if (clickedAdverbial) {
+              const relatedVerb = verbs.find((v) => v.time_zone === clickedAdverbial.time_zone);
+              if (relatedVerb) {
+                setSelectedNodeId(relatedVerb.id);
+              }
+            }
           }}
         />
       )}
