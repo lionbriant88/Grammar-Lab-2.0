@@ -85,3 +85,54 @@ def test_languagetool_manager_singleton():
     manager2 = get_languagetool_manager()
 
     assert manager1 is manager2
+
+
+# ===================== Task 3: safe_execute wrapper =====================
+
+def test_safe_execute_success():
+    """safe_execute returns validator result on success"""
+    from grammar_engine.expansion_validator import safe_execute, ValidationReport
+
+    def dummy_validator(sentence, doc, phrases):
+        return ValidationReport(severity="PASS", is_valid=True)
+
+    result = safe_execute(dummy_validator, "dummy", "test", None, [])
+
+    assert result.severity == "PASS"
+    assert result.is_valid is True
+
+
+def test_safe_execute_catches_exception():
+    """safe_execute catches exception and returns WARNING"""
+    from grammar_engine.expansion_validator import safe_execute
+
+    def failing_validator(sentence, doc, phrases):
+        raise ValueError("Test error")
+
+    result = safe_execute(failing_validator, "failing_validator", "test", None, [])
+
+    assert result.severity == "WARNING"
+    assert result.is_valid is True  # Don't block pipeline
+    assert len(result.warnings) == 1
+    assert "failing_validator" in result.warnings[0]
+    assert "Test error" in result.warnings[0]
+    assert len(result.infos) == 1
+
+
+def test_safe_execute_preserves_args():
+    """safe_execute passes args to validator correctly"""
+    from grammar_engine.expansion_validator import safe_execute, ValidationReport
+
+    captured = {}
+
+    def capturing_validator(sentence, doc, phrases):
+        captured["sentence"] = sentence
+        captured["doc"] = doc
+        captured["phrases"] = phrases
+        return ValidationReport()
+
+    safe_execute(capturing_validator, "test", "my sentence", "my doc", ["my phrases"])
+
+    assert captured["sentence"] == "my sentence"
+    assert captured["doc"] == "my doc"
+    assert captured["phrases"] == ["my phrases"]

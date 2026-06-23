@@ -7,10 +7,13 @@ M3a+1:Validator 升级为 4 级 severity 包装(PASS/INFO/WARNING/ERROR),但仍�
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Literal
+from typing import Any, Callable, Dict, List, Literal
 
 from .phrase_segmenter import PhraseNode
+
+logger = logging.getLogger(__name__)
 
 # M3a+1:severity 4 级
 Severity = Literal["PASS", "INFO", "WARNING", "ERROR"]
@@ -27,6 +30,41 @@ class ValidationReport:
     warnings: List[str] = field(default_factory=list)
     infos: List[str] = field(default_factory=list)
     auto_corrections: List[Dict[str, str]] = field(default_factory=list)
+
+
+# ----------------------------- M3c1: safe_execute 韧性包装器 -----------------------------
+
+def safe_execute(
+    validator_func: Callable,
+    validator_name: str,
+    *args,
+    **kwargs
+) -> ValidationReport:
+    """安全执行 Validator，捕获所有异常。
+
+    M3c1: Ensures zero crashes - any validator failure degrades to WARNING.
+
+    Args:
+        validator_func: The validator function to execute
+        validator_name: Name of the validator (for logging)
+        *args: Arguments to pass to validator
+        **kwargs: Keyword arguments to pass to validator
+
+    Returns:
+        ValidationReport from validator, or WARNING report on exception
+    """
+    try:
+        return validator_func(*args, **kwargs)
+    except Exception as e:
+        logger.error(f"Validator {validator_name} failed: {e}", exc_info=True)
+        return ValidationReport(
+            severity="WARNING",
+            is_valid=True,  # Don't block pipeline
+            warnings=[f"校验器 {validator_name} 运行失败: {str(e)}"],
+            errors=[],
+            infos=["系统仍可正常使用，此校验项已跳过。"],
+            auto_corrections=[]
+        )
 
 
 # ----------------------------- 统一入口 -----------------------------
@@ -284,6 +322,7 @@ def validate_relative_pronoun_match(
 __all__ = [
     "ValidationReport",
     "validate",
+    "safe_execute",
     "validate_subject_verb_agreement",
     "validate_tense_consistency",
     "validate_clause_completeness",
