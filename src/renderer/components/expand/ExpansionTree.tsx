@@ -19,7 +19,7 @@ export interface ExpansionTreeProps {
 }
 
 /**
- * 右栏「短语结构图」(M3a)。
+ * 右栏「句法结构」(M3b 升级命名)。
  * M3a+1.3:子树改嵌套卡片 + 缩进,无箭头。选中短语的子项展开显示 kind 分组 + chips。
  */
 export default function ExpansionTree({
@@ -41,10 +41,10 @@ export default function ExpansionTree({
           darkMode ? 'text-slate-400' : 'text-slate-500'
         }`}
       >
-        短语结构图
+        句法结构
       </h3>
       <p className={`text-[10px] mb-4 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-        Phrase Structure Preview · 嵌套展示短语结构与扩展可能
+        Sentence Structure · 句子短语结构与扩展可能
       </p>
 
       {/* 根:整句 */}

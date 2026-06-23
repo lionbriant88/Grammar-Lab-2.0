@@ -12,7 +12,7 @@
 | 0 | 基础框架搭建 | ✅ 完成 | 2026-06-12 |
 | 1 | 时间轴分析功能 | ✅ 完成 | 2026-06-13 |
 | 2 | 句剖析分析功能 | ✅ 完成 | 2026-06-14 |
-| 3 | 句扩展分析功能 | ✅ M3a + M3a+1 完成 | 2026-06-17 |
+| 3 | 句扩展分析功能 | ✅ M3a + M3a+1 + M3b 完成 | 2026-06-23 |
 | 4 | AI 模型集成 | ⏳ 待开始 | - |
 
 ---
@@ -264,10 +264,54 @@ npm run build    # 构建生产版本
 
 ---
 
-## ⏭️ 下一步：阶段 3 续(M3a+1 / M3b / M3c)
+## ✅ 阶段 3 续: M3b - Benepar + Aux Chain Validator (2026-06-23)
 
-- **M3a+1**(Phase 1 写路径):提交闭环、新增高亮、连线、动态 Expansion Tree、Parent-Child 可视化、Depth 限制
-- **M3b**(Phase 2):装 Benepar,phrase_segmenter 换实现;PP/participle/infinitive phrase 扩展;Validator tense_consistency 实现;右栏升级命名为「成分句法树」
+### 目标
+
+Phase 2: 引入 Benepar 成分句法分析 + 助动词链完整性校验
+
+### 任务清单
+
+- [x] 后端 Benepar 集成（带 spaCy 降级机制）
+- [x] PhraseNode 数据模型扩展（head_word/role/modifiers）
+- [x] Validator aux_chain 完整性检查
+- [x] 前端 UI 标题更新（句法结构）
+- [x] TypeScript 类型定义更新
+
+### 架构决策
+
+1. **Benepar 降级策略**: transformers 5.x 兼容性问题，系统正确降级到 spaCy
+2. **无 PP_RULES**: PP 扩展通过 children NP 自动处理
+3. **无 PARTICIPLE_RULES**: 复用 VP + verb_form 特征
+4. **Aux Chain 完整性**: 检查单 VP 内部，不做跨 VP 时态一致性
+
+### 新增文件
+
+- `backend/grammar_engine/phrase_segmenter_benepar.py`
+- `docs/M3b-checkpoint-2026-06-23.md`
+- `docs/superpowers/specs/2026-06-23-m3b-design-v2.md`
+
+### 修改文件
+
+- `backend/grammar_engine/nlp_loader.py`
+- `backend/grammar_engine/phrase_segmenter.py`
+- `backend/grammar_engine/expansion_validator.py`
+- `backend/grammar_engine/models.py`
+- `backend/requirements.txt`
+- `src/renderer/components/expand/ExpansionTree.tsx`
+- `src/renderer/types/index.ts`
+
+### 验证状态
+
+- ✅ pytest 30/31 通过
+- ✅ TypeScript 零错误
+- ✅ Benepar 降级机制验证
+- ✅ M3a 回归测试通过
+
+---
+
+## ⏭️ 下一步：阶段 3 续(M3c) 或 阶段 4
+
 - **M3c**(Phase 3):接 LanguageTool;relative/adverbial/noun clause 扩展;Validator 其他 3 项实现 + 关系代词匹配
 - **阶段 4**:AI 模型集成
 

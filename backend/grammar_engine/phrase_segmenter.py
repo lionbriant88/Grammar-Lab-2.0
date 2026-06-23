@@ -1,32 +1,20 @@
-"""短语识别 (Phrase Segmentation) — M3a 过渡实现(无 Benepar)
+"""短语识别 (Phrase Segmentation) — M3b Benepar 升级版
+
+M3b 架构:
+- 优先使用 Benepar 成分句法分析 (Berkeley Neural Parser, 95.5% F1)
+- Benepar 不可用时降级到 M3a 的 spaCy 简化版
+- 数据模型 (PhraseNode) 完全相同，调用方无需关心实现细节
 
 把一个英文句子切成 **短语节点** (NP / VP / PP / ADJP / ADVP / CLAUSE),
 每个节点带 **特征槽** (features) 和 **Parent-Child 挂载关系** (parent_id / children_ids)。
 
 这是 spec §2.0 原则 #1/#2/#6 的代码化:
   - 原则 #1/#2:扩展单位是短语(NP/VP/PP),不是单个 token。
-  - 原则 #6:特征槽(NP: number/person;VP: tense/modal/aux_chain/aspect)。
+  - 原则 #6:特征槽(NP: number/person;VP: verb_form/tense/modal/aux_chain/aspect)。
   - 调整 1/2:Parent-Child 挂载 + VP 完整时态链(见 spec §2.2)。
+  - M3b 新增: verb_form 特征 + head_word/role/modifiers 字段
 
 设计精神(最高优先级):**数据模型稳定优先于分析精度**。
-M3a 不追求句法分析精度,只保证 PhraseNode 字段集稳定 —— M3b 装 Benepar
-时,只需替换 `segment()` 的函数体,数据模型与返回契约保持不变。
-
-流程(过渡实现,基于 spaCy `noun_chunks` + `dep_`):
-  1. NP  : doc.noun_chunks → 带 number/person 特征
-  2. VP  : 从每个主动词(ROOT / VERB)向前回溯,吞掉连续 auxiliaries + modal +
-           main verb + particles(prt dep_)→ 合成一个 VP span,features 含
-           aux_chain / modal / aspect / tense。
-           - `has been working` → 一个 VP(present_perfect_progressive)
-           - `would like`      → 一个 VP(modal="would")
-           - `to help`         → **不纳入 VP**(留 M3b 的 infinitive phrase)
-  3. PP  : 介词(ADP / prep dep)引导的 chunk → PP。
-           挂载规则(调整 1 简化版):
-             - PP 紧跟一个 NP(右侧相邻,且该 NP 在 PP 左边)→ parent_id = 该 NP
-             - PP 紧跟一个 VP(右侧相邻)→ parent_id = 该 VP
-             - 否则 PP 顶层漂浮(parent_id=None)
-           例:`likes the dog in the park` → PP(`in the park`).parent_id = NP(`the dog`)
-  4. 其余 token(冠词已被 noun_chunks 吞入 NP / 连词 / 标点)不单独成节点。
 """
 from __future__ import annotations
 
@@ -106,18 +94,47 @@ class PhraseNode:
     # 内部用:该短语覆盖的 token 索引(不入 API 响应)
     token_indices: List[int] = field(default_factory=list)
 
+    # M3b 新增字段(为 M4 AI Validator / Version Tree / Semantic Block 预留)
+    head_word: str = ""              # 中心词(与 head_token_text 同值,语义更明确)
+    role: str = ""                   # 语法角色(与 syntactic_role 同值,简化命名)
+    modifiers: List[str] = field(default_factory=list)  # 修饰语 phrase_id 列表
+
 
 # ----------------------------- 主入口 -----------------------------
 
 def segment(doc: Any) -> List[PhraseNode]:
-    """M3a 短语识别(过渡实现,无 Benepar)。
+    """M3b 短语识别:优先使用 Benepar,降级到 spaCy。
 
     返回扁平 list[PhraseNode],按句中出现的字符顺序排列。每个节点内部已具备
-    parent_id / children_ids,可重建树结构(调整 1:即使 M3a 不显示关系树,
-    也必须建立内部挂载)。
+    parent_id / children_ids,可重建树结构。
 
-    M3b 升级:函数体改用 Benepar 成分树,parent_id/children_ids 直接来自
-    Benepar 的嵌套结构,无需改数据模型 / 返回契约。
+    M3b 架构:
+    - 优先使用 Benepar 成分句法分析(95.5% F1 精度)
+    - Benepar 不可用时降级到 M3a 的 spaCy 简化版
+    - 数据模型和返回契约完全相同,调用方无需关心实现
+    """
+    if len(doc) == 0:
+        return []
+
+    # M3b: 尝试使用 Benepar
+    from .nlp_loader import get_benepar_parser
+    parser = get_benepar_parser()
+
+    if parser:
+        try:
+            from .phrase_segmenter_benepar import segment_benepar
+            return segment_benepar(doc, parser)
+        except Exception as e:
+            print(f"[WARN] Benepar segmentation failed: {e}. Falling back to spaCy.")
+
+    # 降级到 M3a spaCy 实现
+    return segment_spacy_fallback(doc)
+
+
+def segment_spacy_fallback(doc: Any) -> List[PhraseNode]:
+    """M3a spaCy 简化版(Benepar 降级路径)。
+
+    保留 M3a 完整实现作为 fallback,保证系统在 Benepar 不可用时仍可运行。
     """
     if len(doc) == 0:
         return []
@@ -141,6 +158,9 @@ def segment(doc: Any) -> List[PhraseNode]:
             span=(chunk.start_char, chunk.end_char),
             features=features,
             token_indices=indices,
+            head_word=head.text,      # M3b 新增
+            role=role,                 # M3b 新增
+            modifiers=[],              # M3b 新增
         ))
 
     # 2. VP:从每个主动词(ROOT 或 VERB)向前回溯吞 aux + modal + particle
@@ -183,6 +203,9 @@ def segment(doc: Any) -> List[PhraseNode]:
             span=(doc[indices[0]].idx, doc[indices[-1]].idx + len(doc[indices[-1]].text)),
             features=features,
             token_indices=indices,
+            head_word=head_tok.text,          # M3b 新增
+            role=ROLE_PREDICATE,               # M3b 新增
+            modifiers=[],                      # M3b 新增
         ))
         pid += 1
 
@@ -213,6 +236,9 @@ def segment(doc: Any) -> List[PhraseNode]:
                 span=(span_start, span_end),
                 features={},
                 token_indices=indices,
+                head_word=t.text,              # M3b 新增
+                role=ROLE_ADVERBIAL,           # M3b 新增
+                modifiers=[],                  # M3b 新增
             ))
             pp_index_set.update(indices)
             pid += 1

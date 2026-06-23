@@ -247,7 +247,10 @@ class ExpansionCandidate(BaseModel):
 
 
 class PhraseNodeInfo(BaseModel):
-    """短语节点(phrase-level,含特征槽 + Parent-Child 挂载)"""
+    """短语节点(phrase-level,含特征槽 + Parent-Child 挂载)
+
+    M3b 新增字段: head_word / role / modifiers (为 M4 AI Validator 预留)
+    """
     id: str
     type: str = Field(..., description="NP / VP / PP ...")
     text: str = Field(..., description="短语文本,如 the dogs / has been working")
@@ -257,12 +260,17 @@ class PhraseNodeInfo(BaseModel):
     span: tuple[int, int] = Field(..., description="字符位置 [start, end)")
     features: dict = Field(
         default_factory=dict,
-        description="特征槽:NP{number,person}; VP{tense,modal,aux_chain,aspect}",
+        description="特征槽:NP{number,person}; VP{verb_form,tense,modal,aux_chain,aspect}",
     )
     parent_id: Optional[str] = Field(default=None, description="父短语 id;None=顶层")
     children_ids: List[str] = Field(default_factory=list, description="子短语 id 列表")
     is_expandable: bool = Field(default=False, description="该短语是否有 L1 可扩展项")
     candidates: List[ExpansionCandidate] = Field(default_factory=list, description="候选菜单,仅 is_expandable=True 时非空")
+
+    # M3b 新增字段
+    head_word: str = Field(default="", description="中心词(与 head_token_text 同值,语义更明确)")
+    role: str = Field(default="", description="语法角色(与 syntactic_role 同值,简化命名)")
+    modifiers: List[str] = Field(default_factory=list, description="修饰语 phrase_id 列表")
 
 
 class ExpansionAnalyzeResponse(BaseModel):

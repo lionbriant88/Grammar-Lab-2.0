@@ -81,6 +81,10 @@ export interface PhraseNodeInfo {
   children_ids: string[];
   is_expandable: boolean;
   candidates: ExpansionCandidate[];
+  // M3b 新增字段
+  head_word?: string;        // 中心词(与 head_token_text 同值)
+  role?: string;             // 语法角色(与 syntactic_role 同值)
+  modifiers?: string[];      // 修饰语 phrase_id 列表
 }
 
 // 句扩展后端响应

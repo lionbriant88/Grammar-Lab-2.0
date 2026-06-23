@@ -165,13 +165,99 @@ def _add_third_person_s(verb_text: str) -> str:
     return w + "s"
 
 
-# ----------------------------- 第 2-5 项:占位(M3b/M3c 实现) -----------------------------
+# ----------------------------- 第 2 项:助动词链完整性(M3b 实现) -----------------------------
 
 def validate_tense_consistency(
     sentence: str, doc: Any, phrases: List[PhraseNode]
 ) -> ValidationReport:
-    """M3b 占位。"""
-    return ValidationReport()
+    """M3b 实现:检查单个 VP 内部的助动词链完整性。
+
+    架构决策:不实现跨 VP 时态一致性检查(那是语义级,属 M4 AI Validator)。
+    仅检查单个 VP 内部 aux_chain 与 tense 的组合是否合法。
+
+    检查规则:
+    1. present_perfect → aux_chain 必须含 have/has
+    2. present_perfect_progressive → aux_chain 必须含 have/has + been
+    3. past_perfect → aux_chain 必须含 had
+    4. past_perfect_progressive → aux_chain 必须含 had + been
+    5. *_progressive (非 perfect) → aux_chain 必须含 be/is/am/are/was/were
+    6. modal 后动词必须是原形(暂不实现,需复杂 POS 检查)
+
+    示例错误:
+    - "He has working." → ERROR: present_perfect 需要 past_participle(worked),不是 present_participle(working)
+    - "He has work." → ERROR: present_perfect 需要 worked,不是原形 work
+    - "He is worked." → WARNING: is + past_participle 通常是被动语态,需语义判断
+    """
+    errors = []
+    warnings = []
+    infos = []
+
+    for phrase in phrases:
+        # 只检查 VP
+        if phrase.type != "VP":
+            continue
+
+        tense = phrase.features.get("tense", "unknown")
+        aux_chain = phrase.features.get("aux_chain", [])
+        aux_lower = [a.lower() for a in aux_chain]
+
+        # 规则 1: present_perfect 必须有 have/has
+        if tense == "present_perfect":
+            if not any(a in ["have", "has"] for a in aux_lower):
+                errors.append(
+                    f"VP '{phrase.text}' 标记为 present_perfect，但 aux_chain 缺少 have/has"
+                )
+
+        # 规则 2: present_perfect_progressive 必须有 have/has + been
+        if tense == "present_perfect_progressive":
+            has_have = any(a in ["have", "has"] for a in aux_lower)
+            has_been = "been" in aux_lower
+            if not (has_have and has_been):
+                errors.append(
+                    f"VP '{phrase.text}' 标记为 present_perfect_progressive，"
+                    f"但 aux_chain 不完整(需要 have/has + been)"
+                )
+
+        # 规则 3: past_perfect 必须有 had
+        if tense == "past_perfect":
+            if "had" not in aux_lower:
+                errors.append(
+                    f"VP '{phrase.text}' 标记为 past_perfect，但 aux_chain 缺少 had"
+                )
+
+        # 规则 4: past_perfect_progressive 必须有 had + been
+        if tense == "past_perfect_progressive":
+            has_had = "had" in aux_lower
+            has_been = "been" in aux_lower
+            if not (has_had and has_been):
+                errors.append(
+                    f"VP '{phrase.text}' 标记为 past_perfect_progressive，"
+                    f"但 aux_chain 不完整(需要 had + been)"
+                )
+
+        # 规则 5: *_progressive (非 perfect) 必须有 be 动词
+        if tense in ["present_progressive", "past_progressive"]:
+            has_be = any(
+                a in ["be", "is", "am", "are", "was", "were", "being"]
+                for a in aux_lower
+            )
+            if not has_be:
+                errors.append(
+                    f"VP '{phrase.text}' 标记为 {tense}，但 aux_chain 缺少 be 动词"
+                )
+
+    # 合并 severity
+    severity = "ERROR" if errors else ("WARNING" if warnings else "PASS")
+    is_valid = (severity != "ERROR")
+
+    return ValidationReport(
+        severity=severity,
+        is_valid=is_valid,
+        errors=errors,
+        warnings=warnings,
+        infos=infos,
+        auto_corrections=[]  # aux_chain 错误无自动修正
+    )
 
 
 def validate_clause_completeness(
