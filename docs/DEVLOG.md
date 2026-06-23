@@ -4,6 +4,110 @@
 
 ---
 
+## 2026-06-23 M3c3 — Relative Clause Templates（开放定语从句）
+
+### 目标
+
+开放定语从句模板，用户可在前端选择定语从句扩展选项。
+
+### 核心任务
+
+- ✅ 扩展 RELATIVE_CLAUSE_TEMPLATES 从 2 个占位到 10 个真实模板
+- ✅ 所有模板设置 available=True
+- ✅ expansion_rules.py 中 relative_clause 设置 available=True
+- ✅ 完善 RelativeClauseRealizer（约束验证 + 先行词识别）
+- ✅ 集成到 expansion_engine（修复 _compose_preview）
+- ✅ 24 个单元测试全部通过
+- ✅ E2E 验证通过（curl + 预期前端显示）
+
+### 10 个定语从句模板
+
+1. **主语关系从句** (3): who/which/that + VP
+2. **宾语关系从句** (4): who/whom/which/that + NP + VP
+3. **所有格关系从句** (1): whose + NP + VP
+4. **关系副词从句** (2): where/when + clause
+
+### 关键实现
+
+#### 1. 先行词类型识别（启发式规则）
+
+```python
+def _get_antecedent_type(phrase: PhraseNode) -> str:
+    # person: 人物名词 + 人称代词
+    # thing: 默认（书、车、狗）
+    # place: 地点名词（城市、学校、公园）
+    # time: 时间名词（日、年、时刻）
+    # reason: 原因名词（原因、why）
+```
+
+基于 head_lemma 白名单匹配，覆盖常见教学用例。不追求100%准确，但足够 M3c3 使用。
+
+#### 2. 约束验证
+
+- who/whom → person
+- which → thing
+- that → any（通用）
+- where → place
+- when → time
+- whose → any
+
+约束不匹配时抛出 ValueError，前端不会看到不合法的模板。
+
+#### 3. expansion_engine 修复
+
+**问题**: `_compose_preview()` 期望模板有 `kind` 属性，但 ClauseTemplate 没有。
+
+**解决**: 
+```python
+def _compose_preview(tpl, head):
+    # ClauseTemplate: 直接返回 surface（保留占位符 <VERB>）
+    if hasattr(tpl, 'clause_type'):
+        return tpl.surface
+    # WordTemplate: 继续使用 example_anchor 逻辑
+    ...
+```
+
+#### 4. expansion_templates 集成
+
+修改 `get_templates_for_kind()` 支持从句：
+
+```python
+if kind == "relative_clause":
+    from . import clause_templates
+    return clause_templates.RELATIVE_CLAUSE_TEMPLATES
+```
+
+延迟导入避免循环依赖。
+
+### 测试结果
+
+- **24/24 单元测试通过**
+- 覆盖：模板定义、Realizer、先行词识别、约束验证、集成
+- curl API 返回 10 个定语从句模板
+- 前端 ExpansionInspector 应显示"定语从句 L3"分组
+
+### 踩坑/Gotchas
+
+1. **hasattr 判断**: 用 `hasattr(tpl, 'clause_type')` 区分 ClauseTemplate 和 WordTemplate（两者结构不同）
+2. **preview 逻辑**: ClauseTemplate 不需要替换 head，直接返回 surface 即可
+3. **先行词识别精度**: 启发式规则足够教学场景，但不是 100% 准确（如"the reason"可能被误判为 thing）
+
+### 验收清单
+
+- [x] 10 个模板 available=True
+- [x] expansion_rules relative_clause 开放
+- [x] Realizer 约束验证实现
+- [x] 24 个测试全部通过
+- [x] curl 返回定语从句 candidates
+- [x] 提交到 main 分支（commit 294a1ae）
+
+### 下一步
+
+- **M3c4**: 开放状语从句（because/when/if/although）
+- **M3c5**: 开放名词性从句（that/whether/what/how）
+
+---
+
 ## 2026-06-23 M3c2 — Template Foundation（模板基础架构）
 
 ### 目标
