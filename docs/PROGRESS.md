@@ -12,7 +12,7 @@
 | 0 | 基础框架搭建 | ✅ 完成 | 2026-06-12 |
 | 1 | 时间轴分析功能 | ✅ 完成 | 2026-06-13 |
 | 2 | 句剖析分析功能 | ✅ 完成 | 2026-06-14 |
-| 3 | 句扩展分析功能 | ✅ M3a + M3a+1 + M3b 完成 | 2026-06-23 |
+| 3 | 句扩展分析功能 | ✅ M3a + M3a+1 + M3b + M3c1 完成 | 2026-06-23 |
 | 4 | AI 模型集成 | ⏳ 待开始 | - |
 
 ---
@@ -310,10 +310,57 @@ Phase 2: 引入 Benepar 成分句法分析 + 助动词链完整性校验
 
 ---
 
-## ⏭️ 下一步：阶段 3 续(M3c) 或 阶段 4
+## ✅ 阶段 3 续续: M3c1 - Validation Layer (2026-06-23)
 
-- **M3c**(Phase 3):接 LanguageTool;relative/adverbial/noun clause 扩展;Validator 其他 3 项实现 + 关系代词匹配
-- **阶段 4**:AI 模型集成
+**目标:** 完善验证层，实现剩余 3 项 Rule Validators + LanguageTool 集成
+
+### 核心任务
+
+- ✅ **ExternalServiceManager 基类** - 为 LanguageTool/Ollama/AI/TTS 复用设计
+- ✅ **LanguageToolManager** - 嵌入式服务器管理，非阻塞异步启动
+- ✅ **safe_execute() 包装器** - 零崩溃保证，任何 validator 失败 → 降级 → 继续
+- ✅ **3 项浅层 Rule Validators**:
+  - clause_completeness - 从句完整性（缺主语/谓语）
+  - non_finite_legality - 非谓语合法性（to + base form, 动词模式）
+  - relative_pronoun_match - 关系代词匹配（人/物 + who/which）
+- ✅ **LanguageTool Validator #6** - 次级顾问（非语法权威）
+- ✅ **validate() 统一入口更新** - 6 项 validators 全部用 safe_execute 包装
+- ✅ **Backend 启动集成** - LanguageTool 后台启动，Backend 立即可用
+- ✅ **80/15/5 测试金字塔** - 28 个测试（重点：降级测试）
+
+### 架构原则
+
+- **验证优先，生成其次** - 永不同时开发模板和验证器
+- **零崩溃保证** - 任何组件失败 → 降级 → 继续工作
+- **Always HTTP 200** - 永不返回 500，Validator 是教师非编译器
+- **LanguageTool 次级顾问** - Grammar Engine 是唯一语法权威
+
+### 测试覆盖
+
+- ✅ 21 个单元测试（80%）
+- ✅ 7 个降级测试（15%，最高优先级）
+- ✅ 全部通过，零崩溃验证
+
+### 关键文件
+
+- `backend/grammar_engine/external_service_manager.py` - 基类
+- `backend/grammar_engine/languagetool_manager.py` - LT 管理器
+- `backend/grammar_engine/expansion_validator.py` - 6 项 validators + safe_execute
+- `backend/app.py` - 启动/关闭事件
+- `backend/tests/test_m3c1_validators.py` - 单元测试
+- `backend/tests/test_m3c1_degradation.py` - 降级测试
+
+### 设计文档
+
+- `docs/superpowers/specs/2026-06-23-m3c1-validation-layer-design.md`
+- `docs/superpowers/plans/2026-06-23-m3c1-validation-layer.md`
+
+---
+
+## ⏭️ 下一步：阶段 3 续(M3c2-5) 或 阶段 4
+
+- **M3c2-5**(Phase 3): relative/adverbial/noun clause 扩展模板生成
+- **阶段 4**: AI 模型集成
 
 
 ---

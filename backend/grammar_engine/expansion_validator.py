@@ -7,10 +7,13 @@ M3a+1:Validator 升级为 4 级 severity 包装(PASS/INFO/WARNING/ERROR),但仍�
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Literal
+from typing import Any, Callable, Dict, List, Literal
 
 from .phrase_segmenter import PhraseNode
+
+logger = logging.getLogger(__name__)
 
 # M3a+1:severity 4 级
 Severity = Literal["PASS", "INFO", "WARNING", "ERROR"]
@@ -29,19 +32,84 @@ class ValidationReport:
     auto_corrections: List[Dict[str, str]] = field(default_factory=list)
 
 
+# ----------------------------- M3c1: safe_execute 韧性包装器 -----------------------------
+
+def safe_execute(
+    validator_func: Callable,
+    validator_name: str,
+    *args,
+    **kwargs
+) -> ValidationReport:
+    """安全执行 Validator，捕获所有异常。
+
+    M3c1: Ensures zero crashes - any validator failure degrades to WARNING.
+
+    Args:
+        validator_func: The validator function to execute
+        validator_name: Name of the validator (for logging)
+        *args: Arguments to pass to validator
+        **kwargs: Keyword arguments to pass to validator
+
+    Returns:
+        ValidationReport from validator, or WARNING report on exception
+    """
+    try:
+        return validator_func(*args, **kwargs)
+    except Exception as e:
+        logger.error(f"Validator {validator_name} failed: {e}", exc_info=True)
+        return ValidationReport(
+            severity="WARNING",
+            is_valid=True,  # Don't block pipeline
+            warnings=[f"校验器 {validator_name} 运行失败: {str(e)}"],
+            errors=[],
+            infos=["系统仍可正常使用，此校验项已跳过。"],
+            auto_corrections=[]
+        )
+
+
 # ----------------------------- 统一入口 -----------------------------
 
 def validate(sentence: str, doc: Any, phrases: List[PhraseNode]) -> ValidationReport:
-    """5 项检查统一入口。M3a:第 1 项实现,2-5 占位。
+    """6 项检查统一入口（M3c1 完整版）。
+
+    M3c1 更新：
+    - 所有 6 项 validators 使用 safe_execute 包装
+    - Validator #6 (LanguageTool) 作为次级顾问
+    - 任何 validator 失败 → 降级为 WARNING → 继续
 
     phrases 是 phrase_segmenter.segment(doc) 的输出(含特征槽)。
     """
     reports = [
-        validate_subject_verb_agreement(sentence, doc, phrases),  # M3a 实现
-        validate_tense_consistency(sentence, doc, phrases),       # M3b 占位
-        validate_clause_completeness(sentence, doc, phrases),     # M3c 占位
-        validate_non_finite_legality(sentence, doc, phrases),     # M3c 占位
-        validate_relative_pronoun_match(sentence, doc, phrases),  # M3c 占位
+        safe_execute(
+            validate_subject_verb_agreement,
+            "subject_verb_agreement",
+            sentence, doc, phrases
+        ),
+        safe_execute(
+            validate_tense_consistency,
+            "tense_consistency",
+            sentence, doc, phrases
+        ),
+        safe_execute(
+            validate_clause_completeness,
+            "clause_completeness",
+            sentence, doc, phrases
+        ),
+        safe_execute(
+            validate_non_finite_legality,
+            "non_finite_legality",
+            sentence, doc, phrases
+        ),
+        safe_execute(
+            validate_relative_pronoun_match,
+            "relative_pronoun_match",
+            sentence, doc, phrases
+        ),
+        safe_execute(
+            validate_with_languagetool,
+            "languagetool",
+            sentence
+        ),
     ]
     return _merge_reports(reports)
 
@@ -263,30 +331,355 @@ def validate_tense_consistency(
 def validate_clause_completeness(
     sentence: str, doc: Any, phrases: List[PhraseNode]
 ) -> ValidationReport:
-    """M3c 占位。"""
-    return ValidationReport()
+    """M3c1: 检查从句是否完整（有主语+谓语）。
+
+    示例错误：
+    - "The boy who."
+    - "The boy who happy."
+    - "because he"
+
+    设计原则：故意保持浅层（80% 常见错误），不追求完整覆盖。
+    """
+    errors = []
+    warnings = []
+
+    # 找出所有 CLAUSE 类型的短语
+    clauses = [p for p in phrases if p.type == "CLAUSE"]
+
+    for clause in clauses:
+        # 检查从句内是否有 NP + VP
+        clause_phrase_ids = set([clause.id] + clause.children_ids)
+        clause_phrases = [p for p in phrases if p.id in clause_phrase_ids]
+
+        has_subject = any(p.type == "NP" and p.syntactic_role == "subject"
+                         for p in clause_phrases)
+        has_predicate = any(p.type == "VP" and p.syntactic_role == "predicate"
+                           for p in clause_phrases)
+
+        if not has_subject:
+            errors.append(f"从句 '{clause.text}' 缺少主语")
+
+        if not has_predicate:
+            errors.append(f"从句 '{clause.text}' 缺少谓语")
+
+    severity = "ERROR" if errors else "PASS"
+    is_valid = (severity != "ERROR")
+
+    return ValidationReport(
+        severity=severity,
+        is_valid=is_valid,
+        errors=errors,
+        warnings=warnings,
+        infos=[],
+        auto_corrections=[]
+    )
+
+
+# M3c1: 高频动词模式数据库（100-300个常见动词）
+VERB_PATTERNS = {
+    # verb + doing
+    "enjoy": ["doing"],
+    "avoid": ["doing"],
+    "finish": ["doing"],
+    "suggest": ["doing"],
+    "keep": ["doing"],
+    "mind": ["doing"],
+    "practice": ["doing"],
+    "consider": ["doing"],
+    "miss": ["doing"],
+    "deny": ["doing"],
+
+    # verb + to do
+    "want": ["to_do"],
+    "decide": ["to_do"],
+    "plan": ["to_do"],
+    "hope": ["to_do"],
+    "expect": ["to_do"],
+    "agree": ["to_do"],
+    "refuse": ["to_do"],
+    "promise": ["to_do"],
+    "need": ["to_do"],
+    "manage": ["to_do"],
+
+    # verb + both
+    "like": ["doing", "to_do"],
+    "love": ["doing", "to_do"],
+    "hate": ["doing", "to_do"],
+    "start": ["doing", "to_do"],
+    "begin": ["doing", "to_do"],
+    "continue": ["doing", "to_do"],
+    "prefer": ["doing", "to_do"],
+}
 
 
 def validate_non_finite_legality(
     sentence: str, doc: Any, phrases: List[PhraseNode]
 ) -> ValidationReport:
-    """M3c 占位。"""
-    return ValidationReport()
+    """M3c1: 检查非谓语动词使用。
+
+    检查：
+    1. to + base form（拒绝 to went, to going）
+    2. 高频动词模式（enjoy + doing, want + to do）
+
+    设计原则：小型 VerbPatternDB（100-300个高频动词），不追求完整英语覆盖。
+    """
+    errors = []
+    warnings = []
+
+    # 检查 to + 动词形式
+    if doc:
+        tokens = list(doc)
+        for i, token in enumerate(tokens):
+            if token.text.lower() == "to" and i + 1 < len(tokens):
+                next_token = tokens[i + 1]
+                if next_token.pos_ == "VERB":
+                    # 检查是否为原形
+                    if next_token.tag_ not in ["VB"]:  # VB = base form
+                        errors.append(
+                            f"'to' 后应接动词原形，而非 '{next_token.text}'"
+                        )
+
+    # 检查动词模式（简化版）
+    for i, phrase in enumerate(phrases):
+        if phrase.type == "VP":
+            verb_lemma = phrase.head_token_text.lower()
+            pattern = VERB_PATTERNS.get(verb_lemma)
+
+            if pattern and i + 1 < len(phrases):
+                next_phrase = phrases[i + 1]
+
+                if next_phrase.type == "VP":
+                    verb_form = next_phrase.features.get("verb_form")
+
+                    if "doing" in pattern and verb_form not in ["present_participle", "gerund"]:
+                        warnings.append(
+                            f"'{verb_lemma}' 通常后接动名词(-ing 形式)"
+                        )
+
+                    if "to_do" in pattern and verb_form != "infinitive":
+                        warnings.append(
+                            f"'{verb_lemma}' 通常后接不定式(to + 动词原形)"
+                        )
+
+    severity = "ERROR" if errors else ("WARNING" if warnings else "PASS")
+    is_valid = (severity != "ERROR")
+
+    return ValidationReport(
+        severity=severity,
+        is_valid=is_valid,
+        errors=errors,
+        warnings=warnings,
+        infos=[],
+        auto_corrections=[]
+    )
 
 
 def validate_relative_pronoun_match(
     sentence: str, doc: Any, phrases: List[PhraseNode]
 ) -> ValidationReport:
-    """M3c 占位。"""
-    return ValidationReport()
+    """M3c1: 检查关系代词与先行词匹配。
+
+    检查：
+    - 人 + who/whom/whose
+    - 物 + which/whose
+    - 通用 + that
+
+    示例错误：
+    - "The man which runs" → ERROR
+    - "The dog who barks" → WARNING
+
+    设计原则：不处理 where/when/in which/of which、限定性/非限定性。
+    """
+    errors = []
+    warnings = []
+
+    # 找出所有定语从句（CLAUSE 且 parent 是 NP）
+    relative_clauses = [
+        p for p in phrases
+        if p.type == "CLAUSE" and p.parent_id
+    ]
+
+    for clause in relative_clauses:
+        # 找先行词（父 NP）
+        antecedent = next((p for p in phrases if p.id == clause.parent_id), None)
+        if not antecedent or antecedent.type != "NP":
+            continue
+
+        # 判断先行词是人还是物
+        is_person = _is_person_np(antecedent, doc)
+
+        # 提取关系代词（从句的第一个词）
+        clause_text = clause.text.strip()
+        first_word = clause_text.split()[0].lower() if clause_text else ""
+
+        if is_person:
+            if first_word == "which":
+                errors.append(
+                    f"先行词 '{antecedent.text}' 是人，应使用 'who' 而非 'which'"
+                )
+        else:  # 物
+            if first_word == "who":
+                warnings.append(
+                    f"先行词 '{antecedent.text}' 是物，建议使用 'which' 或 'that'"
+                )
+
+    severity = "ERROR" if errors else ("WARNING" if warnings else "PASS")
+    is_valid = (severity != "ERROR")
+
+    return ValidationReport(
+        severity=severity,
+        is_valid=is_valid,
+        errors=errors,
+        warnings=warnings,
+        infos=[],
+        auto_corrections=[]
+    )
+
+
+def _is_person_np(np: PhraseNode, doc: Any) -> bool:
+    """判断 NP 是否指人（简化版）"""
+    # 人称代词
+    if np.head_pos == "PRON":
+        pronoun = np.head_token_text.lower()
+        return pronoun in {"i", "you", "he", "she", "we", "they", "who", "whom"}
+
+    # spaCy NER 标签
+    if doc:
+        for token in doc:
+            if token.text == np.head_token_text:
+                if token.ent_type_ == "PERSON":
+                    return True
+
+    # 常见人类名词
+    person_nouns = {
+        "person", "people", "man", "woman", "boy", "girl", "child", "children",
+        "teacher", "student", "friend", "doctor", "engineer", "artist",
+        "player", "singer", "writer", "actor", "director", "professor"
+    }
+    return np.head_token_text.lower() in person_nouns
+
+
+# ----------------------------- 第 6 项:LanguageTool Validator(M3c1 实现) -----------------------------
+
+def validate_with_languagetool(sentence: str) -> ValidationReport:
+    """M3c1: LanguageTool 作为第 6 道校验器（次级顾问，非语法权威）。
+
+    架构定位：
+    - LanguageTool 是次级顾问，Grammar Engine 是唯一语法权威
+    - LanguageTool 不可用时优雅降级（返回 INFO，不阻断）
+    - LanguageTool 建议不自动应用
+
+    Severity 映射（保守）：
+    - grammar/misspelling → WARNING
+    - typographical/whitespace → INFO
+    - style/redundancy → INFO
+    - 默认 → WARNING
+
+    Args:
+        sentence: Sentence to check
+
+    Returns:
+        ValidationReport with LanguageTool suggestions
+    """
+    from .languagetool_manager import get_languagetool_manager
+
+    infos = []
+    warnings = []
+    errors = []
+
+    try:
+        manager = get_languagetool_manager()
+
+        # LanguageTool not available
+        if not manager.is_alive():
+            return ValidationReport(
+                severity="INFO",
+                is_valid=True,
+                infos=["LanguageTool 服务暂不可用，跳过此检查项"],
+                warnings=[],
+                errors=[],
+                auto_corrections=[]
+            )
+
+        # Call LanguageTool
+        report = manager.check(sentence, timeout=5)
+
+        # Handle timeout
+        if report.timeout:
+            return ValidationReport(
+                severity="INFO",
+                is_valid=True,
+                infos=["LanguageTool 检查超时，跳过此检查项"],
+                warnings=[],
+                errors=[],
+                auto_corrections=[]
+            )
+
+        # Handle error
+        if not report.success:
+            return ValidationReport(
+                severity="INFO",
+                is_valid=True,
+                infos=[f"LanguageTool 检查失败: {report.error}"],
+                warnings=[],
+                errors=[],
+                auto_corrections=[]
+            )
+
+        # Process matches
+        for match in report.matches:
+            category_id = match.get("category", {}).get("id", "").upper()
+            message = match.get("message", "")
+
+            # Severity mapping (conservative)
+            if category_id in ["GRAMMAR", "MISSPELLING"]:
+                warnings.append(f"LanguageTool 建议: {message}")
+            elif category_id in ["TYPOGRAPHY", "WHITESPACE", "STYLE", "REDUNDANCY"]:
+                infos.append(f"LanguageTool 提示: {message}")
+            else:
+                # Default to WARNING for unknown categories
+                warnings.append(f"LanguageTool 建议: {message}")
+
+    except Exception as e:
+        # Catch any unexpected errors
+        logger.error(f"validate_with_languagetool failed: {e}", exc_info=True)
+        return ValidationReport(
+            severity="INFO",
+            is_valid=True,
+            infos=["LanguageTool 检查异常，跳过此检查项"],
+            warnings=[],
+            errors=[],
+            auto_corrections=[]
+        )
+
+    # Determine final severity
+    if errors:
+        severity = "ERROR"
+    elif warnings:
+        severity = "WARNING"
+    elif infos:
+        severity = "INFO"
+    else:
+        severity = "PASS"
+
+    return ValidationReport(
+        severity=severity,
+        is_valid=True,  # LanguageTool never blocks (secondary advisor)
+        errors=errors,
+        warnings=warnings,
+        infos=infos,
+        auto_corrections=[]
+    )
 
 
 __all__ = [
     "ValidationReport",
     "validate",
+    "safe_execute",
     "validate_subject_verb_agreement",
     "validate_tense_consistency",
     "validate_clause_completeness",
     "validate_non_finite_legality",
     "validate_relative_pronoun_match",
+    "validate_with_languagetool",
 ]

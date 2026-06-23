@@ -49,7 +49,13 @@ startup_event = asyncio.Event()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifecycle management"""
+    """Application lifecycle management
+
+    M3c1: Non-blocking LanguageTool startup
+    - Backend starts immediately (doesn't wait for LanguageTool)
+    - LanguageTool starts in background thread
+    - Grammar Engine fully functional from the start
+    """
     logger.info("Loading spaCy model...")
     global model_loaded
     try:
@@ -61,10 +67,29 @@ async def lifespan(app: FastAPI):
         logger.error(f"[FAIL] Model loading failed: {e}")
         model_loaded = False
         startup_event.set()
-    
+
+    # M3c1: Start LanguageTool in background (non-blocking)
+    logger.info("Starting LanguageTool in background...")
+    try:
+        from grammar_engine.languagetool_manager import get_languagetool_manager
+        lt_manager = get_languagetool_manager()
+        lt_manager.ensure_server_async()
+        logger.info("[OK] LanguageTool startup initiated (non-blocking)")
+    except Exception as e:
+        logger.warning(f"[WARN] LanguageTool startup failed: {e}")
+        logger.info("Grammar Engine will continue without LanguageTool")
+
     yield
-    
+
+    # M3c1: Shutdown LanguageTool
     logger.info("Service shutting down...")
+    try:
+        from grammar_engine.languagetool_manager import get_languagetool_manager
+        lt_manager = get_languagetool_manager()
+        lt_manager.shutdown()
+        logger.info("[OK] LanguageTool shut down")
+    except Exception as e:
+        logger.warning(f"[WARN] LanguageTool shutdown failed: {e}")
 
 
 # Create FastAPI app

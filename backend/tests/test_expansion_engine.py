@@ -411,17 +411,18 @@ def test_validator_severity_warning():
 
 
 def test_validator_severity_pass_default():
-    """无问题时 severity == PASS。"""
+    """无问题时 severity == PASS or INFO（M3c1: LanguageTool 不可用时为 INFO）。"""
     rep = _validate("I like dogs.")
-    assert rep.severity == "PASS"
+    assert rep.severity in ["PASS", "INFO"]  # M3c1: LanguageTool unavailable → INFO
     assert rep.is_valid is True
 
 
 def test_validator_severity_infos_field():
-    """ValidationReport 有 infos 字段(可空)。"""
+    """ValidationReport 有 infos 字段(可空或含 LanguageTool 不可用提示)。"""
     rep = _validate("I like dogs.")
     assert hasattr(rep, "infos")
-    assert rep.infos == []
+    # M3c1: LanguageTool 不可用时会有 INFO 消息，这是正常的降级行为
+    assert isinstance(rep.infos, list)
 
 
 # ----------------------------- M3a+1.6 Pydantic 模型 -----------------------------
