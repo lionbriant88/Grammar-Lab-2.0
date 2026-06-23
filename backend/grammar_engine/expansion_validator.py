@@ -529,6 +529,119 @@ def _is_person_np(np: PhraseNode, doc: Any) -> bool:
     return np.head_token_text.lower() in person_nouns
 
 
+# ----------------------------- 第 6 项:LanguageTool Validator(M3c1 实现) -----------------------------
+
+def validate_with_languagetool(sentence: str) -> ValidationReport:
+    """M3c1: LanguageTool 作为第 6 道校验器（次级顾问，非语法权威）。
+
+    架构定位：
+    - LanguageTool 是次级顾问，Grammar Engine 是唯一语法权威
+    - LanguageTool 不可用时优雅降级（返回 INFO，不阻断）
+    - LanguageTool 建议不自动应用
+
+    Severity 映射（保守）：
+    - grammar/misspelling → WARNING
+    - typographical/whitespace → INFO
+    - style/redundancy → INFO
+    - 默认 → WARNING
+
+    Args:
+        sentence: Sentence to check
+
+    Returns:
+        ValidationReport with LanguageTool suggestions
+    """
+    from .languagetool_manager import get_languagetool_manager
+
+    infos = []
+    warnings = []
+    errors = []
+
+    try:
+        manager = get_languagetool_manager()
+
+        # LanguageTool not available
+        if not manager.is_alive():
+            return ValidationReport(
+                severity="INFO",
+                is_valid=True,
+                infos=["LanguageTool 服务暂不可用，跳过此检查项"],
+                warnings=[],
+                errors=[],
+                auto_corrections=[]
+            )
+
+        # Call LanguageTool
+        report = manager.check(sentence, timeout=5)
+
+        # Handle timeout
+        if report.timeout:
+            return ValidationReport(
+                severity="INFO",
+                is_valid=True,
+                infos=["LanguageTool 检查超时，跳过此检查项"],
+                warnings=[],
+                errors=[],
+                auto_corrections=[]
+            )
+
+        # Handle error
+        if not report.success:
+            return ValidationReport(
+                severity="INFO",
+                is_valid=True,
+                infos=[f"LanguageTool 检查失败: {report.error}"],
+                warnings=[],
+                errors=[],
+                auto_corrections=[]
+            )
+
+        # Process matches
+        for match in report.matches:
+            category_id = match.get("category", {}).get("id", "").upper()
+            message = match.get("message", "")
+
+            # Severity mapping (conservative)
+            if category_id in ["GRAMMAR", "MISSPELLING"]:
+                warnings.append(f"LanguageTool 建议: {message}")
+            elif category_id in ["TYPOGRAPHY", "WHITESPACE", "STYLE", "REDUNDANCY"]:
+                infos.append(f"LanguageTool 提示: {message}")
+            else:
+                # Default to WARNING for unknown categories
+                warnings.append(f"LanguageTool 建议: {message}")
+
+    except Exception as e:
+        # Catch any unexpected errors
+        logger.error(f"validate_with_languagetool failed: {e}", exc_info=True)
+        return ValidationReport(
+            severity="INFO",
+            is_valid=True,
+            infos=["LanguageTool 检查异常，跳过此检查项"],
+            warnings=[],
+            errors=[],
+            auto_corrections=[]
+        )
+
+    # Determine final severity
+    if errors:
+        severity = "ERROR"
+    elif warnings:
+        severity = "WARNING"
+    elif infos:
+        severity = "INFO"
+    else:
+        severity = "PASS"
+
+    return ValidationReport(
+        severity=severity,
+        is_valid=True,  # LanguageTool never blocks (secondary advisor)
+        errors=errors,
+        warnings=warnings,
+        infos=infos,
+        auto_corrections=[]
+    )
+
+
 __all__ = [
     "ValidationReport",
     "validate",
@@ -538,4 +651,5 @@ __all__ = [
     "validate_clause_completeness",
     "validate_non_finite_legality",
     "validate_relative_pronoun_match",
+    "validate_with_languagetool",
 ]

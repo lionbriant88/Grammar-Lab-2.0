@@ -272,3 +272,68 @@ def test_relative_pronoun_match_person_which_invalid():
     assert result.is_valid is False
     assert len(result.errors) > 0
     assert "which" in result.errors[0].lower()
+
+
+# ===================== Task 7: LanguageTool validator #6 =====================
+
+def test_validate_with_languagetool_server_not_available():
+    """validate_with_languagetool returns INFO when server not available"""
+    from grammar_engine.expansion_validator import validate_with_languagetool
+
+    # LanguageTool not started in test environment
+    result = validate_with_languagetool("He go to school.")
+
+    # Should return INFO (not ERROR), system continues
+    assert result.severity in ["INFO", "PASS"]
+    assert result.is_valid is True
+
+
+def test_validate_with_languagetool_success():
+    """validate_with_languagetool processes LT matches into ValidationReport"""
+    from grammar_engine.expansion_validator import validate_with_languagetool
+    from unittest.mock import patch, MagicMock
+
+    # Mock LanguageTool to return a match
+    mock_manager = MagicMock()
+    mock_manager.is_alive.return_value = True
+    mock_manager.check.return_value = MagicMock(
+        success=True,
+        matches=[{
+            "message": "Possible typo: you repeated a whitespace",
+            "shortMessage": "Whitespace repetition",
+            "category": {"id": "TYPOGRAPHY", "name": "Typography"},
+            "ruleId": "WHITESPACE_RULE"
+        }],
+        error=None,
+        timeout=False
+    )
+
+    with patch('grammar_engine.languagetool_manager.get_languagetool_manager', return_value=mock_manager):
+        result = validate_with_languagetool("He  runs.")
+
+    # Should map TYPOGRAPHY to INFO
+    assert result.severity == "INFO"
+    assert result.is_valid is True
+    assert len(result.infos) > 0
+
+
+def test_validate_with_languagetool_timeout():
+    """validate_with_languagetool handles timeout gracefully"""
+    from grammar_engine.expansion_validator import validate_with_languagetool
+    from unittest.mock import patch, MagicMock
+
+    mock_manager = MagicMock()
+    mock_manager.is_alive.return_value = True
+    mock_manager.check.return_value = MagicMock(
+        success=False,
+        matches=[],
+        error="Request timeout",
+        timeout=True
+    )
+
+    with patch('grammar_engine.languagetool_manager.get_languagetool_manager', return_value=mock_manager):
+        result = validate_with_languagetool("Test sentence.")
+
+    assert result.severity == "INFO"
+    assert result.is_valid is True
+    assert "timeout" in result.infos[0].lower() or "超时" in result.infos[0]
