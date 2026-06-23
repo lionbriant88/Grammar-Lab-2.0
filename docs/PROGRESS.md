@@ -357,9 +357,54 @@ Phase 2: 引入 Benepar 成分句法分析 + 助动词链完整性校验
 
 ---
 
-## ⏭️ 下一步：阶段 3 续(M3c2-5) 或 阶段 4
+## ✅ 阶段 3 续续续: M3c2 - Template Foundation (2026-06-23)
 
-- **M3c2-5**(Phase 3): relative/adverbial/noun clause 扩展模板生成
+**目标:** 建立从句扩展的模板基础架构（内部准备，不对外开放）
+
+### 核心任务
+
+- ✅ **TemplateBase 抽象层** - Slot / ClauseTemplate / TemplateBase
+- ✅ **ClauseRealizer 基础设施** - RealizationContext / 槽位替换 / 约束验证
+- ✅ **3 类从句模板定义** - relative/adverbial/noun 各 2 个占位模板
+- ✅ **expansion_engine 集成** - apply_template() 识别 ClauseTemplate
+- ✅ **55 个单元测试** - 100% 通过
+
+### 架构原则
+
+- **无 UI，无 available=True** - 纯后端基础设施，前端不可见
+- **槽位驱动设计** - Slot 是从句模板的核心抽象
+- **Realizer 分离** - 实现与模板定义分离
+- **为 M3c3-5 铺路** - 每个阶段只需加模板，不改架构
+
+### 模板数量
+
+- 定语从句: 2 个占位模板 (who/which + verb)
+- 状语从句: 2 个占位模板 (because/when + clause)
+- 名词性从句: 2 个占位模板 (that/whether + clause)
+- **所有模板 available=False**
+
+### 关键文件
+
+- `backend/grammar_engine/template_base.py` - 模板基类
+- `backend/grammar_engine/clause_realizer.py` - 实现器
+- `backend/grammar_engine/clause_templates.py` - 模板定义
+- `backend/grammar_engine/expansion_engine.py` - 集成（占位）
+- `backend/tests/test_template_base.py` - 17 tests
+- `backend/tests/test_clause_realizer.py` - 14 tests
+- `backend/tests/test_clause_templates.py` - 22 tests
+- `backend/tests/test_m3c2_integration.py` - 2 tests
+
+### 设计文档
+
+- `docs/superpowers/plans/2026-06-23-m3c2-template-foundation.md`
+
+---
+
+## ⏭️ 下一步：阶段 3 续(M3c3-5) 或 阶段 4
+
+- **M3c3**(Phase 3): 开放定语从句（8-12 个模板，available=True）
+- **M3c4**(Phase 3): 开放状语从句（10-12 个模板，available=True）
+- **M3c5**(Phase 3): 开放名词性从句（10-12 个模板，available=True）
 - **阶段 4**: AI 模型集成
 
 

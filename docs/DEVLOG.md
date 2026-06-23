@@ -4,6 +4,64 @@
 
 ---
 
+## 2026-06-23 M3c2 — Template Foundation（模板基础架构）
+
+### 目标
+
+建立从句扩展的模板基础架构，但**不对外开放**（available=False）。这是内部准备阶段。
+
+### 核心任务
+
+- TemplateBase / ClauseTemplate / Slot 抽象层
+- ClauseRealizer 基础设施（槽位替换 + 约束验证）
+- 3 类从句模板定义（各 2 个占位模板）
+- expansion_engine 集成（占位）
+
+### 架构原则（M3c2 铁律）
+
+- **无 UI，无 available=True** - 纯后端基础设施，前端完全不可见
+- **槽位驱动设计** - Slot 是从句模板的核心抽象（name/type/required/default）
+- **Realizer 分离** - 模板定义与实现逻辑分离，M3c3-5 只需加模板数据
+- **为 M3c3-5 铺路** - 每个后续阶段只需：① 扩展模板数据 ② available=True ③ 实现 Realizer 逻辑
+
+### 关键决策
+
+- **Slot 抽象**: 从句模板中的占位符（如 `who <VERB>`），运行时填充实际内容
+- **3 类 Realizer**: RelativeClauseRealizer / AdverbialClauseRealizer / NounClauseRealizer
+- **M3c2 占位实现**: apply_template() 检测 ClauseTemplate 但返回原句不变（M3c3-5 完善）
+- **hasattr 判断**: 通过 hasattr(template, 'clause_type') 区分 ClauseTemplate 和 WordTemplate
+
+### 模板数量
+
+- **定语从句**: 2 个（who/which + verb）
+- **状语从句**: 2 个（because/when + clause）
+- **名词性从句**: 2 个（that/whether + clause）
+- **全部 available=False**
+
+### 测试策略
+
+- 55 个单元测试（17 + 14 + 22 + 2）
+- 100% 覆盖 Slot / ClauseTemplate / ClauseRealizer / 模板定义 / 集成
+- 无 E2E 测试（因为 available=False，前端不可见）
+
+### 踩坑/Gotchas
+
+- **dataclass 继承问题**: 子类字段不能有默认值而父类字段没有 → clause_type 必须有默认值
+- **hasattr 检测**: 用 hasattr(template, 'clause_type') 判断是否为 ClauseTemplate（而非 isinstance）
+- **占位返回原句**: M3c2 的 apply_template() 对 ClauseTemplate 返回原句，不做任何改变
+
+### 验证
+
+- pytest 55/55 通过（17 template_base + 14 clause_realizer + 22 clause_templates + 2 integration）
+- 零新增失败（现有测试全部通过）
+- WordTemplate (adj/adv/number) 仍正常工作
+
+### 下一步
+
+- **M3c3**: 开放定语从句（8-12 个 who/which/that 模板，available=True，实现 Realizer）
+
+---
+
 ## 2026-06-23 M3c1 — Validation Layer 完善
 
 ### 目标
