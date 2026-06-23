@@ -136,3 +136,139 @@ def test_safe_execute_preserves_args():
     assert captured["sentence"] == "my sentence"
     assert captured["doc"] == "my doc"
     assert captured["phrases"] == ["my phrases"]
+
+
+# ===================== Task 4-6: Three Shallow Rule Validators =====================
+
+def test_clause_completeness_valid():
+    """validate_clause_completeness returns PASS for complete clauses"""
+    from grammar_engine.expansion_validator import validate_clause_completeness
+
+    # Mock data - no CLAUSE type phrases (simple sentence)
+    result = validate_clause_completeness("He runs.", None, [])
+
+    assert result.severity == "PASS"
+    assert result.is_valid is True
+
+
+def test_clause_completeness_missing_predicate():
+    """validate_clause_completeness detects missing predicate"""
+    from grammar_engine.expansion_validator import validate_clause_completeness
+    from grammar_engine.phrase_segmenter import PhraseNode
+
+    # Mock incomplete clause: "The boy who"
+    clause = PhraseNode(
+        id="clause_1", type="CLAUSE", text="who", head_token_text="who",
+        head_pos="PRON", syntactic_role="relative_clause",
+        span=(2, 3), features={}, parent_id="np_1", children_ids=[],
+        is_expandable=False, candidates=[]
+    )
+
+    result = validate_clause_completeness("The boy who.", None, [clause])
+
+    assert result.severity == "ERROR"
+    assert result.is_valid is False
+    assert len(result.errors) > 0
+
+
+def test_non_finite_legality_to_base_form_valid():
+    """validate_non_finite_legality accepts 'to + base form'"""
+    from grammar_engine.expansion_validator import validate_non_finite_legality
+
+    # Mock doc with "to go"
+    class MockToken:
+        def __init__(self, text, pos, tag):
+            self.text = text
+            self.pos_ = pos
+            self.tag_ = tag
+
+    doc = [
+        MockToken("I", "PRON", "PRP"),
+        MockToken("want", "VERB", "VBP"),
+        MockToken("to", "PART", "TO"),
+        MockToken("go", "VERB", "VB"),  # VB = base form
+    ]
+
+    result = validate_non_finite_legality("I want to go.", doc, [])
+
+    assert result.severity == "PASS"
+    assert result.is_valid is True
+
+
+def test_non_finite_legality_to_wrong_form():
+    """validate_non_finite_legality rejects 'to + wrong form'"""
+    from grammar_engine.expansion_validator import validate_non_finite_legality
+
+    # Mock doc with "to went"
+    class MockToken:
+        def __init__(self, text, pos, tag):
+            self.text = text
+            self.pos_ = pos
+            self.tag_ = tag
+
+    doc = [
+        MockToken("I", "PRON", "PRP"),
+        MockToken("want", "VERB", "VBP"),
+        MockToken("to", "PART", "TO"),
+        MockToken("went", "VERB", "VBD"),  # VBD = past tense (wrong)
+    ]
+
+    result = validate_non_finite_legality("I want to went.", doc, [])
+
+    assert result.severity == "ERROR"
+    assert result.is_valid is False
+    assert len(result.errors) > 0
+
+
+def test_relative_pronoun_match_person_who_valid():
+    """validate_relative_pronoun_match accepts 'person + who'"""
+    from grammar_engine.expansion_validator import validate_relative_pronoun_match
+
+    result = validate_relative_pronoun_match("The man who runs.", None, [])
+
+    # Should pass (no CLAUSE phrases in mock)
+    assert result.severity == "PASS"
+    assert result.is_valid is True
+
+
+def test_relative_pronoun_match_person_which_invalid():
+    """validate_relative_pronoun_match rejects 'person + which'"""
+    from grammar_engine.expansion_validator import validate_relative_pronoun_match
+    from grammar_engine.phrase_segmenter import PhraseNode
+
+    # Mock NP for "man"
+    np = PhraseNode(
+        id="np_1", type="NP", text="The man", head_token_text="man",
+        head_pos="NOUN", syntactic_role="subject",
+        span=(0, 2), features={}, parent_id=None, children_ids=["clause_1"],
+        is_expandable=False, candidates=[]
+    )
+
+    # Mock CLAUSE for "which runs"
+    clause = PhraseNode(
+        id="clause_1", type="CLAUSE", text="which runs", head_token_text="which",
+        head_pos="PRON", syntactic_role="relative_clause",
+        span=(2, 4), features={}, parent_id="np_1", children_ids=[],
+        is_expandable=False, candidates=[]
+    )
+
+    # Mock doc
+    class MockToken:
+        def __init__(self, text, pos, ent_type=""):
+            self.text = text
+            self.pos_ = pos
+            self.ent_type_ = ent_type
+
+    doc = [
+        MockToken("The", "DET"),
+        MockToken("man", "NOUN", "PERSON"),
+        MockToken("which", "PRON"),
+        MockToken("runs", "VERB"),
+    ]
+
+    result = validate_relative_pronoun_match("The man which runs.", doc, [np, clause])
+
+    assert result.severity == "ERROR"
+    assert result.is_valid is False
+    assert len(result.errors) > 0
+    assert "which" in result.errors[0].lower()
