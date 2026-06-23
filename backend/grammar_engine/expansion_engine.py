@@ -10,6 +10,8 @@ spec §2.6:`analyze(sentence)` 是 M3a 唯一对外函数。流程:
      - 不命中 → is_expandable=False,candidates=[]
   4. 返回 {sentence, phrases, warnings}
 
+M3c2 更新: 支持 ClauseTemplate（但 available=False，M3c3-5 才开放）
+
 spaCy 不可用时降级:返回 warnings + 空 phrases,不抛异常(spec §2.6 原决策)。
 """
 from __future__ import annotations
@@ -115,10 +117,21 @@ def _compose_preview(tpl: Any, head: str) -> str:
 
 
 def apply_template(phrase: Any, template: Any, sentence: str) -> str:
-    """M3a+1:套模板到目标短语,返回新句(只支持 adjective 一类,M3a+1.1 后续任务补其它 kind)。
+    """M3a+1:套模板到目标短语,返回新句。
+
+    M3c2 更新: 添加 ClauseTemplate 支持（占位，M3c3-5 完善）
 
     形容词:插到 NP head 之前,所有已有 adj 之后。
     """
+    # M3c2: 检测 ClauseTemplate（通过 hasattr 判断是否有 clause_type 属性）
+    if hasattr(template, 'clause_type'):
+        # ClauseTemplate - M3c2 占位，M3c3-5 实现
+        # 目前所有 ClauseTemplate available=False，前端不会调用到这里
+        # M3c3: 实现定语从句拼装
+        # M3c4: 实现状语从句拼装
+        # M3c5: 实现名词性从句拼装
+        return sentence  # M3c2 占位：不做任何改变
+
     if template.kind == "adjective":
         # 找 head 在原句中的字符位置
         head = phrase.head_token_text
