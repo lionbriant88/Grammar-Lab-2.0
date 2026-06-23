@@ -12,7 +12,7 @@
 | 0 | 基础框架搭建 | ✅ 完成 | 2026-06-12 |
 | 1 | 时间轴分析功能 | ✅ 完成 | 2026-06-13 |
 | 2 | 句剖析分析功能 | ✅ 完成 | 2026-06-14 |
-| 3 | 句扩展分析功能 | ✅ M3a + M3a+1 + M3b + M3c1 完成 | 2026-06-23 |
+| 3 | 句扩展分析功能 | ✅ M3a + M3a+1 + M3b + M3c1 + M3c2 + M3c3 完成 | 2026-06-23 |
 | 4 | AI 模型集成 | ⏳ 待开始 | - |
 
 ---
@@ -400,11 +400,62 @@ Phase 2: 引入 Benepar 成分句法分析 + 助动词链完整性校验
 
 ---
 
-## ⏭️ 下一步：阶段 3 续(M3c3-5) 或 阶段 4
+## ✅ 阶段 3 续续续续: M3c3 - Relative Clause Templates (2026-06-23)
 
-- **M3c3**(Phase 3): 开放定语从句（8-12 个模板，available=True）
-- **M3c4**(Phase 3): 开放状语从句（10-12 个模板，available=True）
-- **M3c5**(Phase 3): 开放名词性从句（10-12 个模板，available=True）
+**目标:** 开放定语从句模板，用户可在前端选择定语从句扩展
+
+### 核心任务
+
+- ✅ **扩展 RELATIVE_CLAUSE_TEMPLATES** - 从 2 个占位到 10 个真实模板
+  - 主语关系从句: who/which/that + VP (3 个)
+  - 宾语关系从句: who/whom/which/that + NP + VP (4 个)
+  - 所有格关系从句: whose + NP + VP (1 个)
+  - 关系副词从句: where/when + clause (2 个)
+- ✅ **所有模板 available=True** - 前端可见可用
+- ✅ **expansion_rules.py** - relative_clause 设置 available=True
+- ✅ **RelativeClauseRealizer 完善** - 约束验证 + 先行词类型识别
+- ✅ **集成到 expansion_engine** - expansion_templates 支持从句模板查询
+- ✅ **单元测试** - 24 个测试全部通过
+- ✅ **E2E 验证** - curl 测试通过，返回 10 个定语从句模板
+
+### 关键实现
+
+1. **先行词类型识别** (`RelativeClauseRealizer._get_antecedent_type`)
+   - person: 人物名词（teacher/man/student）+ 人称代词（he/she）
+   - thing: 默认类型（book/car/dog）
+   - place: 地点名词（city/school/park）
+   - time: 时间名词（day/year/moment）
+   - reason: 原因名词（reason/cause）
+
+2. **约束验证** (`_validate_antecedent_constraints`)
+   - who/whom 要求 person
+   - which 要求 thing
+   - that 接受 any
+   - where 要求 place
+   - when 要求 time
+   - whose 接受 any
+
+3. **模板预览修复** (`expansion_engine._compose_preview`)
+   - ClauseTemplate 直接返回 surface（保留槽位占位符 `<VERB>`）
+   - WordTemplate 继续使用 example_anchor 逻辑
+
+### 验证状态
+
+- ✅ pytest 24/24 通过
+- ✅ curl API 返回定语从句 candidates
+- ✅ 10 个模板全部 available=True
+- ✅ 先行词类型识别覆盖常见用例
+
+### 设计文档
+
+- `.claude/plans/m3c3-relative-clause-expansion.md`
+
+---
+
+## ⏭️ 下一步：阶段 3 续(M3c4-5) 或 阶段 4
+
+- **M3c4**(Phase 3): 开放状语从句（10-12 个 because/when/if/although 模板）
+- **M3c5**(Phase 3): 开放名词性从句（10-12 个 that/whether/what/how 模板）
 - **阶段 4**: AI 模型集成
 
 

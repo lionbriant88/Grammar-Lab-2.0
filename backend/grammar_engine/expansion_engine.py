@@ -110,8 +110,16 @@ def _build_candidates(node: Any, kinds: List[str]) -> List[Dict[str, Any]]:
 
 
 def _compose_preview(tpl: Any, head: str) -> str:
-    """模板预览:用短语实际中心词替换 example_anchor。"""
-    if tpl.kind in ("adverb",):
+    """模板预览:用短语实际中心词替换 example_anchor。
+
+    M3c3 更新: ClauseTemplate 直接返回 surface（槽位保留占位符）
+    """
+    # ClauseTemplate (M3c3): 直接返回 surface，不替换 head
+    if hasattr(tpl, 'clause_type'):
+        return tpl.surface
+
+    # WordTemplate (M3a L1): 使用 example_anchor 逻辑
+    if hasattr(tpl, 'kind') and tpl.kind in ("adverb",):
         return f"{tpl.surface} {head}" if head else tpl.surface
     return f"{tpl.surface} {head}" if head else tpl.surface
 

@@ -122,7 +122,7 @@ class ClauseRealizer(ABC):
 # ----------------------------- 具体实现器（占位） -----------------------------
 
 class RelativeClauseRealizer(ClauseRealizer):
-    """定语从句实现器（M3c2 占位，M3c3 完善）"""
+    """定语从句实现器（M3c3 完整实现）"""
 
     def realize(
         self,
@@ -130,19 +130,111 @@ class RelativeClauseRealizer(ClauseRealizer):
         slot_values: Dict[str, str],
         context: RealizationContext
     ) -> str:
-        """M3c2: 简单槽位替换，无语法调整"""
+        """M3c3: 完整实现，包含约束验证"""
         # 验证槽位值
         errors = template.validate_slot_values(slot_values)
         if errors:
             raise ValueError(f"Invalid slot values: {', '.join(errors)}")
 
-        # 验证约束
-        constraint_errors = self._validate_constraints(template, context)
+        # 验证先行词约束
+        constraint_errors = self._validate_antecedent_constraints(template, context)
         if constraint_errors:
             raise ValueError(f"Constraint violation: {', '.join(constraint_errors)}")
 
         # 槽位替换
         return self._replace_slots(template, slot_values)
+
+    def _validate_antecedent_constraints(
+        self,
+        template: ClauseTemplate,
+        context: RealizationContext
+    ) -> List[str]:
+        """验证先行词约束（M3c3 新增）
+
+        检查先行词类型是否符合模板要求：
+        - who/whom 要求 person
+        - which 要求 thing
+        - that 接受 any
+        - where 要求 place
+        - when 要求 time
+        - whose 接受 any
+        """
+        errors = []
+
+        # 获取先行词（目标短语）
+        antecedent = context.get_target_phrase()
+        if not antecedent:
+            errors.append("Target phrase not found in context")
+            return errors
+
+        if antecedent.type != "NP":
+            errors.append("Target phrase must be an NP for relative clause expansion")
+            return errors
+
+        # 获取模板要求的先行词类型
+        required_type = template.constraints.get("antecedent_type")
+        if not required_type or required_type == "any":
+            return errors  # 无约束或通用（that/whose）
+
+        # 判断实际先行词类型
+        actual_type = self._get_antecedent_type(antecedent)
+
+        # 类型匹配检查
+        if required_type != actual_type:
+            errors.append(
+                f"Antecedent type mismatch: template requires '{required_type}', "
+                f"but antecedent is '{actual_type}'"
+            )
+
+        return errors
+
+    def _get_antecedent_type(self, phrase: PhraseNode) -> str:
+        """判断先行词的语义类型（M3c3 启发式规则）
+
+        返回: "person", "thing", "place", "time", "reason"
+        """
+        head_text = (phrase.head_token_text or "").lower()
+        head_lemma = phrase.features.get("head_lemma", "").lower()
+        head_pos = phrase.head_pos
+
+        # 人称代词 → person
+        if head_pos == "PRON" and head_text in {
+            "he", "she", "who", "i", "you", "we", "they",
+            "him", "her", "me", "us", "them"
+        }:
+            return "person"
+
+        # 地点名词
+        if head_lemma in {
+            "place", "city", "country", "town", "home", "school",
+            "park", "building", "location", "street", "room",
+            "house", "office", "restaurant", "store", "hospital"
+        }:
+            return "place"
+
+        # 时间名词
+        if head_lemma in {
+            "time", "day", "year", "month", "moment", "period",
+            "when", "date", "hour", "week", "season", "century",
+            "morning", "afternoon", "evening", "night"
+        }:
+            return "time"
+
+        # 原因名词
+        if head_lemma in {"reason", "why", "cause"}:
+            return "reason"
+
+        # 人物名词
+        if head_lemma in {
+            "person", "man", "woman", "boy", "girl", "teacher",
+            "student", "friend", "people", "child", "baby", "adult",
+            "doctor", "worker", "engineer", "artist", "writer",
+            "player", "singer", "actor", "musician", "scientist"
+        }:
+            return "person"
+
+        # 默认为物
+        return "thing"
 
 
 class AdverbialClauseRealizer(ClauseRealizer):

@@ -6,11 +6,13 @@
 L1 模板共 20 个(adj 7 / adv 6 / num 4 / degree 3),用户确认"完全够"。
 每个模板的 `example_anchor` 锚到 **短语中心词**(dogs/like/cute),与 §2.2 的
 PhraseNode.head_token_text 对齐;预览拼成 "cute dogs"(给 NP 加形容词)。
+
+M3c3: 从句模板从 clause_templates 导入。
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from .expansion_rules import ExpansionKind
 
@@ -78,8 +80,24 @@ L1_TEMPLATES: Dict[ExpansionKind, List[Template]] = {
 
 # ----------------------------- 查询 -----------------------------
 
-def get_templates_for_kind(kind: ExpansionKind) -> List[Template]:
-    """返回某 kind 的全部模板(L1 有实例,L2/L3 为空列表)。"""
+def get_templates_for_kind(kind: ExpansionKind) -> List[Any]:
+    """返回某 kind 的全部模板。
+
+    L1: 返回 Template 实例
+    L3: 返回 ClauseTemplate 实例（M3c3 新增）
+    """
+    # L3 从句模板（M3c3）
+    if kind in ("relative_clause", "adverbial_clause", "noun_clause"):
+        # 延迟导入避免循环依赖
+        from . import clause_templates
+        if kind == "relative_clause":
+            return clause_templates.RELATIVE_CLAUSE_TEMPLATES
+        elif kind == "adverbial_clause":
+            return clause_templates.ADVERBIAL_CLAUSE_TEMPLATES
+        elif kind == "noun_clause":
+            return clause_templates.NOUN_CLAUSE_TEMPLATES
+
+    # L1 词级模板
     return list(L1_TEMPLATES.get(kind, []))
 
 

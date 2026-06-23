@@ -17,43 +17,183 @@ from .template_base import ClauseTemplate, Slot
 # ----------------------------- 定语从句模板 (Relative Clauses) -----------------------------
 
 RELATIVE_CLAUSE_TEMPLATES: List[ClauseTemplate] = [
-    # M3c2 占位模板 #1: who + verb
+    # ========== Subject Relative Clauses (主语关系从句) ==========
+    # 先行词作从句主语，关系词代替主语
+
+    # 1. who + VP (先行词是人)
     ClauseTemplate(
-        template_id="tpl_rel_who_verb",
+        template_id="tpl_rel_who_subj",
         clause_type="relative",
         surface="who <VERB>",
         slots=[
             Slot(name="verb", type="VP", required=True)
         ],
         constraints={
-            "antecedent_type": "person",  # 先行词必须是人
+            "antecedent_type": "person",
+            "clause_function": "subject"
         },
         semantic_class="person",
-        available=False  # M3c3 才改为 True
+        available=True  # M3c3 开放
     ),
 
-    # M3c2 占位模板 #2: which + verb
+    # 2. which + VP (先行词是物)
     ClauseTemplate(
-        template_id="tpl_rel_which_verb",
+        template_id="tpl_rel_which_subj",
         clause_type="relative",
         surface="which <VERB>",
         slots=[
             Slot(name="verb", type="VP", required=True)
         ],
         constraints={
-            "antecedent_type": "thing",  # 先行词必须是物
+            "antecedent_type": "thing",
+            "clause_function": "subject"
         },
         semantic_class="thing",
-        available=False  # M3c3 才改为 True
+        available=True  # M3c3 开放
     ),
 
-    # M3c3 将扩展到 8-12 个模板:
-    # - that + verb
-    # - where + clause
-    # - when + clause
-    # - whose + noun + verb
-    # - whom + subject + verb
-    # 等等
+    # 3. that + VP (通用，人或物)
+    ClauseTemplate(
+        template_id="tpl_rel_that_subj",
+        clause_type="relative",
+        surface="that <VERB>",
+        slots=[
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "antecedent_type": "any",
+            "clause_function": "subject"
+        },
+        semantic_class="general",
+        available=True  # M3c3 开放
+    ),
+
+    # ========== Object Relative Clauses (宾语关系从句) ==========
+    # 先行词作从句宾语，关系词后需要主语+动词
+
+    # 4. who + NP + VP (人，口语)
+    ClauseTemplate(
+        template_id="tpl_rel_who_obj",
+        clause_type="relative",
+        surface="who <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "antecedent_type": "person",
+            "clause_function": "object"
+        },
+        semantic_class="person",
+        available=True  # M3c3 开放
+    ),
+
+    # 5. whom + NP + VP (人，正式)
+    ClauseTemplate(
+        template_id="tpl_rel_whom_obj",
+        clause_type="relative",
+        surface="whom <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "antecedent_type": "person",
+            "clause_function": "object",
+            "formality": "formal"
+        },
+        semantic_class="person",
+        available=True  # M3c3 开放
+    ),
+
+    # 6. which + NP + VP (物)
+    ClauseTemplate(
+        template_id="tpl_rel_which_obj",
+        clause_type="relative",
+        surface="which <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "antecedent_type": "thing",
+            "clause_function": "object"
+        },
+        semantic_class="thing",
+        available=True  # M3c3 开放
+    ),
+
+    # 7. that + NP + VP (通用)
+    ClauseTemplate(
+        template_id="tpl_rel_that_obj",
+        clause_type="relative",
+        surface="that <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "antecedent_type": "any",
+            "clause_function": "object"
+        },
+        semantic_class="general",
+        available=True  # M3c3 开放
+    ),
+
+    # ========== Possessive Relative Clauses (所有格关系从句) ==========
+
+    # 8. whose + NP + VP
+    ClauseTemplate(
+        template_id="tpl_rel_whose",
+        clause_type="relative",
+        surface="whose <NOUN> <VERB>",
+        slots=[
+            Slot(name="noun", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "antecedent_type": "any",  # whose 可用于人或物
+            "clause_function": "possessive"
+        },
+        semantic_class="possessive",
+        available=True  # M3c3 开放
+    ),
+
+    # ========== Adverbial Relative Clauses (关系副词从句) ==========
+
+    # 9. where + clause (地点)
+    ClauseTemplate(
+        template_id="tpl_rel_where",
+        clause_type="relative",
+        surface="where <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "antecedent_type": "place",
+            "clause_function": "adverbial"
+        },
+        semantic_class="place",
+        available=True  # M3c3 开放
+    ),
+
+    # 10. when + clause (时间)
+    ClauseTemplate(
+        template_id="tpl_rel_when",
+        clause_type="relative",
+        surface="when <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "antecedent_type": "time",
+            "clause_function": "adverbial"
+        },
+        semantic_class="time",
+        available=True  # M3c3 开放
+    ),
 ]
 
 
