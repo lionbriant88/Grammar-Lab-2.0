@@ -1,0 +1,1 @@
+节点类型:phrase(短语)。说明为什么是这个 syntactic_role、修饰什么成分。
