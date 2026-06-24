@@ -89,3 +89,35 @@ async def test_ollama_is_available_returns_false_on_connection_error():
     p = OllamaProvider(base_url="http://127.0.0.1:1", model="llama3.1:8b")  # 端口 1 一定失败
     ok = await p.is_available()
     assert ok is False
+
+
+import os
+from grammar_engine.ai.inference.providers.cloud_provider import CloudProvider
+
+
+def test_cloud_provider_requires_api_key(monkeypatch):
+    """没设 AI_CLOUD_API_KEY 时 init 失败。"""
+    monkeypatch.delenv("AI_CLOUD_API_KEY", raising=False)
+    with pytest.raises(ValueError, match="AI_CLOUD_API_KEY"):
+        CloudProvider()
+
+
+def test_cloud_provider_reads_env(monkeypatch):
+    """env 配置正确时,init 成功。"""
+    monkeypatch.setenv("AI_CLOUD_API_KEY", "sk-test")
+    monkeypatch.setenv("AI_CLOUD_PROVIDER", "openai")
+    monkeypatch.setenv("AI_CLOUD_MODEL", "gpt-4o-mini")
+    p = CloudProvider()
+    assert p.name == "openai"
+    assert p.model_id == "gpt-4o-mini"
+
+
+@pytest.mark.asyncio
+async def test_cloud_provider_health_check_without_key():
+    """无 key 时 health_check 报告 not ok。"""
+    os.environ.pop("AI_CLOUD_API_KEY", None)
+    p = CloudProvider.__new__(CloudProvider)  # bypass __init__
+    p.name = "openai"
+    p.model_id = "gpt-4o-mini"
+    h = await p.health_check()
+    assert h["ok"] is False
