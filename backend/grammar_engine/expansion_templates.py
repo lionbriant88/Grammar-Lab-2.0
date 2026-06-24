@@ -101,8 +101,18 @@ def get_templates_for_kind(kind: ExpansionKind) -> List[Any]:
     return list(L1_TEMPLATES.get(kind, []))
 
 
-def get_template_by_id(template_id: str) -> Optional[Template]:
-    """按 template_id 查单个模板。"""
+def get_template_by_id(template_id: str) -> Optional[Any]:
+    """按 template_id 查单个模板。
+
+    支持 L1 词级模板和 L3 从句模板。
+    """
+    # L3 从句模板（M3c5 修复：apply 端点需要查询从句模板）
+    from . import clause_templates
+    for tpl in clause_templates.ALL_CLAUSE_TEMPLATES:
+        if tpl.template_id == template_id:
+            return tpl
+
+    # L1 词级模板
     for templates in L1_TEMPLATES.values():
         for t in templates:
             if t.template_id == template_id:

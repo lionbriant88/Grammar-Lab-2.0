@@ -283,7 +283,9 @@ def apply(sentence: str, phrase_id: str, template_id: str) -> Dict[str, Any]:
     new_sentence = apply_template(target_phrase, target_template, sentence_clean)
     if new_sentence == sentence_clean:
         # 拼装失败(kind 不支持等)
-        warnings.append(f"apply_template failed for kind={target_template.kind}")
+        # M3c5 修复：ClauseTemplate 有 clause_type 而非 kind
+        kind_attr = getattr(target_template, "kind", None) or getattr(target_template, "clause_type", "unknown")
+        warnings.append(f"apply_template failed for kind={kind_attr}")
         phrases_dicts = [_phrase_to_dict(p) for p in base_phrases]
         return {
             "sentence": sentence_clean,
