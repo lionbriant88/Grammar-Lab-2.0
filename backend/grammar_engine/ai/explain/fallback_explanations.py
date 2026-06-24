@@ -2,7 +2,7 @@
 
 AI 不可用时使用。M4a 覆盖主要 case,M4b 视情况扩充。
 """
-from .explain_service import ExplainResult, ExplainSource
+from .models import ExplainResult, ExplainSource
 
 
 def _make(

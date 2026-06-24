@@ -5,7 +5,7 @@ Cache key 不含 provider/model(跨 provider 复用)。
 import asyncio
 from cachetools import TTLCache
 
-from .explain_service import ExplainResult  # 避免循环:service 也引用 cache
+from .models import ExplainResult
 
 
 class ExplainCache:
