@@ -28,6 +28,15 @@ from grammar_engine.models import (
     ValidationReport as ValidationReportModel,
 )
 from grammar_engine.nlp_loader import nlp_loader
+from grammar_engine.ai.explain.explain_service import (
+    AIExplainService,
+    ExplainContext,
+    ExplainSource,
+)
+from grammar_engine.ai.inference.inference_gateway import InferenceGateway
+from grammar_engine.ai.inference.provider_factory import get_provider
+from grammar_engine.ai.explain.explain_cache import ExplainCache
+from pydantic import BaseModel
 
 
 # Configure logging
@@ -45,6 +54,7 @@ logger = logging.getLogger(__name__)
 # Global state
 model_loaded = False
 startup_event = asyncio.Event()
+explain_service = None
 
 
 @asynccontextmanager
@@ -78,6 +88,19 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"[WARN] LanguageTool startup failed: {e}")
         logger.info("Grammar Engine will continue without LanguageTool")
+
+    # M4: 初始化 AI 解释层
+    logger.info("Initializing AI explain layer...")
+    global explain_service
+    try:
+        provider = await get_provider()
+        gateway = InferenceGateway(provider)
+        cache = ExplainCache()
+        explain_service = AIExplainService(gateway=gateway, cache=cache)
+        logger.info(f"[OK] AI explain layer ready: {provider.name}/{provider.model_id}")
+    except Exception as e:
+        logger.warning(f"[WARN] AI init failed: {e}, fallback only")
+        explain_service = None
 
     yield
 
@@ -258,6 +281,78 @@ def _phrase_to_dict(p) -> dict:
         "children_ids": p.children_ids,
         "is_expandable": p.is_expandable,
         "candidates": p.candidates,
+    }
+
+
+# ===================== M4: /api/explain =====================
+
+class ExplainAPIResponse(BaseModel):
+    ok: bool = True
+    degraded: bool = False
+    result: dict  # ExplainResult 转 dict
+
+
+@app.post("/api/explain", response_model=ExplainAPIResponse)
+async def explain_node(ctx: ExplainContext):
+    """M4 铁律:此端点永不抛异常,永不返回 5xx。"""
+    if explain_service is None:
+        # 服务未初始化 → 走 fallback
+        result = AIExplainService.__new__(AIExplainService)
+        result.provider_name = "fallback"
+        result.provider_model = "builtin"
+        fb = result.fallback_for(ctx)
+        return ExplainAPIResponse(ok=True, degraded=True, result=_result_to_dict(fb))
+
+    try:
+        result = await explain_service.explain(ctx)
+        degraded = result.source == ExplainSource.FALLBACK
+        return ExplainAPIResponse(ok=True, degraded=degraded, result=_result_to_dict(result))
+    except Exception as e:
+        logger.exception(f"[AI] Unexpected: {e}")
+        # 任何未捕获异常 → fallback
+        if explain_service:
+            fb = explain_service.fallback_for(ctx)
+        else:
+            fb = AIExplainService.__new__(AIExplainService).fallback_for(ctx)
+        return ExplainAPIResponse(ok=True, degraded=True, result=_result_to_dict(fb))
+
+
+@app.get("/api/explain/health", response_model=dict)
+async def explain_health():
+    """M4 健康检查。"""
+    if explain_service is None:
+        return {
+            "provider": "fallback",
+            "model": "builtin",
+            "available": False,
+            "latency_ms": 0,
+            "error": "explain service not initialized",
+        }
+    h = await explain_service.gateway.health()
+    return {
+        "provider": explain_service.provider_name,
+        "model": explain_service.provider_model,
+        "available": h.get("ok", False),
+        "latency_ms": h.get("latency_ms", 0),
+        "error": h.get("error"),
+    }
+
+
+def _result_to_dict(r) -> dict:
+    """ExplainResult → JSON-safe dict。"""
+    return {
+        "title": r.title,
+        "summary": r.summary,
+        "why": r.why,
+        "example": r.example,
+        "common_mistakes": r.common_mistakes,
+        "tips": r.tips,
+        "source": r.source.value,
+        "provider": r.provider,
+        "model": r.model,
+        "prompt_version": r.prompt_version,
+        "cached": r.cached,
+        "generated_at": r.generated_at.isoformat(),
     }
 
 
