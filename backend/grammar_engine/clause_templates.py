@@ -200,44 +200,205 @@ RELATIVE_CLAUSE_TEMPLATES: List[ClauseTemplate] = [
 # ----------------------------- 状语从句模板 (Adverbial Clauses) -----------------------------
 
 ADVERBIAL_CLAUSE_TEMPLATES: List[ClauseTemplate] = [
-    # M3c2 占位模板 #1: because + clause
+    # ========== Reason/Cause Adverbial Clauses (原因状语从句) ==========
+
+    # 1. because + clause
     ClauseTemplate(
         template_id="tpl_adv_because",
         clause_type="adverbial",
-        surface="because <CLAUSE>",
+        surface="because <SUBJECT> <VERB>",
         slots=[
-            Slot(name="clause", type="CLAUSE", required=True)
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
         ],
         constraints={
-            "position": "end",  # 因果状语从句通常在句末
+            "position": "end",  # 通常在句末
         },
         semantic_class="reason",
-        available=False  # M3c4 才改为 True
+        available=True  # M3c4 开放
     ),
 
-    # M3c2 占位模板 #2: when + clause
+    # 2. since + clause (原因，较正式)
+    ClauseTemplate(
+        template_id="tpl_adv_since",
+        clause_type="adverbial",
+        surface="since <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "position": "flexible",
+        },
+        semantic_class="reason",
+        available=True  # M3c4 开放
+    ),
+
+    # ========== Time Adverbial Clauses (时间状语从句) ==========
+
+    # 3. when + clause
     ClauseTemplate(
         template_id="tpl_adv_when",
         clause_type="adverbial",
-        surface="when <CLAUSE>",
+        surface="when <SUBJECT> <VERB>",
         slots=[
-            Slot(name="clause", type="CLAUSE", required=True)
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
         ],
         constraints={
-            "position": "flexible",  # 时间状语从句位置灵活
+            "position": "flexible",
         },
         semantic_class="time",
-        available=False  # M3c4 才改为 True
+        available=True  # M3c4 开放
     ),
 
-    # M3c4 将扩展到 10-12 个模板:
-    # - if + clause (条件)
-    # - although + clause (让步)
-    # - while + clause (时间)
-    # - as soon as + clause (时间)
-    # - unless + clause (条件)
-    # - even though + clause (让步)
-    # 等等
+    # 4. while + clause
+    ClauseTemplate(
+        template_id="tpl_adv_while",
+        clause_type="adverbial",
+        surface="while <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "position": "flexible",
+        },
+        semantic_class="time",
+        available=True  # M3c4 开放
+    ),
+
+    # 5. after + clause
+    ClauseTemplate(
+        template_id="tpl_adv_after",
+        clause_type="adverbial",
+        surface="after <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "position": "flexible",
+        },
+        semantic_class="time",
+        available=True  # M3c4 开放
+    ),
+
+    # 6. before + clause
+    ClauseTemplate(
+        template_id="tpl_adv_before",
+        clause_type="adverbial",
+        surface="before <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "position": "flexible",
+        },
+        semantic_class="time",
+        available=True  # M3c4 开放
+    ),
+
+    # ========== Condition Adverbial Clauses (条件状语从句) ==========
+
+    # 7. if + clause
+    ClauseTemplate(
+        template_id="tpl_adv_if",
+        clause_type="adverbial",
+        surface="if <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "position": "flexible",
+        },
+        semantic_class="condition",
+        available=True  # M3c4 开放
+    ),
+
+    # 8. unless + clause (除非)
+    ClauseTemplate(
+        template_id="tpl_adv_unless",
+        clause_type="adverbial",
+        surface="unless <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "position": "flexible",
+        },
+        semantic_class="condition",
+        available=True  # M3c4 开放
+    ),
+
+    # 9. as long as + clause
+    ClauseTemplate(
+        template_id="tpl_adv_as_long_as",
+        clause_type="adverbial",
+        surface="as long as <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "position": "end",
+        },
+        semantic_class="condition",
+        available=True  # M3c4 开放
+    ),
+
+    # ========== Concession Adverbial Clauses (让步状语从句) ==========
+
+    # 10. although + clause
+    ClauseTemplate(
+        template_id="tpl_adv_although",
+        clause_type="adverbial",
+        surface="although <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "position": "flexible",
+        },
+        semantic_class="concession",
+        available=True  # M3c4 开放
+    ),
+
+    # 11. though + clause (口语)
+    ClauseTemplate(
+        template_id="tpl_adv_though",
+        clause_type="adverbial",
+        surface="though <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "position": "flexible",
+        },
+        semantic_class="concession",
+        available=True  # M3c4 开放
+    ),
+
+    # 12. even though + clause (强调)
+    ClauseTemplate(
+        template_id="tpl_adv_even_though",
+        clause_type="adverbial",
+        surface="even though <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "position": "flexible",
+        },
+        semantic_class="concession",
+        available=True  # M3c4 开放
+    ),
 ]
 
 

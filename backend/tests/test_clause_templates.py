@@ -48,8 +48,8 @@ def test_relative_clause_which_template():
 # ===================== 状语从句模板测试 =====================
 
 def test_adverbial_clause_templates_count():
-    """状语从句模板数量（M3c2: 2个占位）"""
-    assert len(ADVERBIAL_CLAUSE_TEMPLATES) == 2
+    """状语从句模板数量（M3c4: >= 12个）"""
+    assert len(ADVERBIAL_CLAUSE_TEMPLATES) >= 12
 
 
 def test_adverbial_clause_because_template():
@@ -58,25 +58,28 @@ def test_adverbial_clause_because_template():
 
     assert template.template_id == "tpl_adv_because"
     assert template.clause_type == "adverbial"
-    assert template.surface == "because <CLAUSE>"
-    assert len(template.slots) == 1
-    assert template.slots[0].name == "clause"
-    assert template.slots[0].type == "CLAUSE"
+    assert template.surface == "because <SUBJECT> <VERB>"
+    assert len(template.slots) == 2
+    assert template.slots[0].name == "subject"
+    assert template.slots[0].type == "NP"
+    assert template.slots[1].name == "verb"
+    assert template.slots[1].type == "VP"
     assert template.constraints["position"] == "end"
     assert template.semantic_class == "reason"
-    assert template.available is False
+    assert template.available is True
 
 
 def test_adverbial_clause_when_template():
     """when + clause 模板"""
-    template = ADVERBIAL_CLAUSE_TEMPLATES[1]
+    template = ADVERBIAL_CLAUSE_TEMPLATES[2]  # when 是第3个
 
     assert template.template_id == "tpl_adv_when"
     assert template.clause_type == "adverbial"
-    assert template.surface == "when <CLAUSE>"
+    assert template.surface == "when <SUBJECT> <VERB>"
+    assert len(template.slots) == 2
     assert template.constraints["position"] == "flexible"
     assert template.semantic_class == "time"
-    assert template.available is False
+    assert template.available is True
 
 
 # ===================== 名词性从句模板测试 =====================
@@ -115,8 +118,8 @@ def test_noun_clause_whether_template():
 # ===================== 统一接口测试 =====================
 
 def test_all_clause_templates_count():
-    """ALL_CLAUSE_TEMPLATES 包含所有模板（M3c3: 14个）"""
-    assert len(ALL_CLAUSE_TEMPLATES) == 14  # M3c3: 10 relative + 2 adverbial + 2 noun
+    """ALL_CLAUSE_TEMPLATES 包含所有模板（M3c4: 24个）"""
+    assert len(ALL_CLAUSE_TEMPLATES) == 24  # M3c4: 10 relative + 12 adverbial + 2 noun
 
 
 def test_all_clause_templates_unique_ids():
@@ -150,9 +153,9 @@ def test_get_clause_templates_by_type_invalid():
 
 
 def test_get_available_clause_templates_empty():
-    """M3c3: get_available_clause_templates 返回定语从句10个"""
+    """M3c4: get_available_clause_templates 返回 22 个（10 relative + 12 adverbial）"""
     available = get_available_clause_templates()
-    assert len(available) == 10  # M3c3: 定语从句已开放
+    assert len(available) == 22  # M3c4: 定语从句 10 + 状语从句 12
 
 
 def test_get_template_by_id_found():
@@ -193,9 +196,9 @@ def test_all_templates_have_surface():
 
 
 def test_all_templates_m3c2_not_available():
-    """M3c3: 定语从句已开放，状语/名词性从句仍为 False"""
+    """M3c4: 定语从句和状语从句已开放，名词性从句仍为 False"""
     for template in ALL_CLAUSE_TEMPLATES:
-        if template.clause_type == "relative":
-            assert template.available is True, f"{template.template_id} should be available in M3c3"
-        else:
-            assert template.available is False, f"{template.template_id} should not be available yet (M3c4/M3c5)"
+        if template.clause_type in ("relative", "adverbial"):
+            assert template.available is True, f"{template.template_id} should be available in M3c4"
+        else:  # noun clause
+            assert template.available is False, f"{template.template_id} should not be available yet (M3c5)"

@@ -48,11 +48,11 @@ def test_rule_completeness():
     adjp_rules = rules.get_rules_for_phrase("ADJP")
     assert "degree_adverb" in adjp_rules
 
-    # L1 已开放 kind 数量正确（M3c3: NP 包含 relative_clause）
+    # L1 已开放 kind 数量正确（M3c4: VP 包含 adverb + adverbial_clause）
     np_avail = rules.get_available_rules_for_phrase("NP")
     assert set(np_avail) == {"adjective", "number", "relative_clause"}
     vp_avail = rules.get_available_rules_for_phrase("VP")
-    assert vp_avail == ["adverb"]
+    assert set(vp_avail) == {"adverb", "adverbial_clause"}
 
 
 # ----------------------------- 2. 短语识别 - 基础 -----------------------------
@@ -174,7 +174,8 @@ def test_engine_analyze():
     # VP(like) 可扩展,1 个 candidate(adverb)
     pred = by_role["predicate"]
     assert pred.is_expandable is True
-    assert [c["kind"] for c in pred.candidates] == ["adverb"]
+    # M3c4: VP 的 candidates 包含 adverb + adverbial_clause
+    assert set(c["kind"] for c in pred.candidates) == {"adverb", "adverbial_clause"}
 
     # NP(I) 代词作 NP,不可扩展
     subj = by_role["subject"]
