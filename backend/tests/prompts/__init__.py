@@ -1,0 +1,1 @@
+"""Prompt snapshot 测试。"""
