@@ -405,44 +405,168 @@ ADVERBIAL_CLAUSE_TEMPLATES: List[ClauseTemplate] = [
 # ----------------------------- 名词性从句模板 (Noun Clauses) -----------------------------
 
 NOUN_CLAUSE_TEMPLATES: List[ClauseTemplate] = [
-    # M3c2 占位模板 #1: that + clause
+    # ========== Object Clauses (宾语从句) ==========
+
+    # 1. that + clause（陈述）
     ClauseTemplate(
         template_id="tpl_noun_that",
         clause_type="noun",
-        surface="that <CLAUSE>",
+        surface="that <SUBJECT> <VERB>",
         slots=[
-            Slot(name="clause", type="CLAUSE", required=True)
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
         ],
         constraints={
-            "function": "object",  # 作宾语从句
+            "function": "object",
         },
         semantic_class="statement",
-        available=False  # M3c5 才改为 True
+        available=True  # M3c5 开放
     ),
 
-    # M3c2 占位模板 #2: whether + clause
+    # 2. whether + clause（疑问，是否）
     ClauseTemplate(
         template_id="tpl_noun_whether",
         clause_type="noun",
-        surface="whether <CLAUSE>",
+        surface="whether <SUBJECT> <VERB>",
         slots=[
-            Slot(name="clause", type="CLAUSE", required=True)
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
         ],
         constraints={
-            "function": "object",  # 作宾语从句
+            "function": "object",
         },
         semantic_class="question",
-        available=False  # M3c5 才改为 True
+        available=True  # M3c5 开放
     ),
 
-    # M3c5 将扩展到 10-12 个模板:
-    # - what + clause (主语/宾语)
-    # - how + clause (方式)
-    # - why + clause (原因)
-    # - where + clause (地点)
-    # - when + clause (时间)
-    # - who + clause (人物)
-    # 等等
+    # 3. if + clause（疑问，是否，口语）
+    ClauseTemplate(
+        template_id="tpl_noun_if",
+        clause_type="noun",
+        surface="if <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "function": "object",
+        },
+        semantic_class="question",
+        available=True  # M3c5 开放
+    ),
+
+    # 4. what + subject + verb（疑问词引导）
+    ClauseTemplate(
+        template_id="tpl_noun_what",
+        clause_type="noun",
+        surface="what <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "function": "object",
+        },
+        semantic_class="question",
+        available=True  # M3c5 开放
+    ),
+
+    # ========== Wh-Clauses (疑问词引导从句) ==========
+
+    # 5. how + subject + verb
+    ClauseTemplate(
+        template_id="tpl_noun_how",
+        clause_type="noun",
+        surface="how <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "function": "object",
+        },
+        semantic_class="manner",
+        available=True  # M3c5 开放
+    ),
+
+    # 6. why + subject + verb
+    ClauseTemplate(
+        template_id="tpl_noun_why",
+        clause_type="noun",
+        surface="why <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "function": "object",
+        },
+        semantic_class="reason",
+        available=True  # M3c5 开放
+    ),
+
+    # 7. where + subject + verb
+    ClauseTemplate(
+        template_id="tpl_noun_where",
+        clause_type="noun",
+        surface="where <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "function": "object",
+        },
+        semantic_class="place",
+        available=True  # M3c5 开放
+    ),
+
+    # 8. when + subject + verb
+    ClauseTemplate(
+        template_id="tpl_noun_when",
+        clause_type="noun",
+        surface="when <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "function": "object",
+        },
+        semantic_class="time",
+        available=True  # M3c5 开放
+    ),
+
+    # 9. who + verb
+    ClauseTemplate(
+        template_id="tpl_noun_who",
+        clause_type="noun",
+        surface="who <VERB>",
+        slots=[
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "function": "object",
+        },
+        semantic_class="person",
+        available=True  # M3c5 开放
+    ),
+
+    # 10. which + subject + verb
+    ClauseTemplate(
+        template_id="tpl_noun_which",
+        clause_type="noun",
+        surface="which <SUBJECT> <VERB>",
+        slots=[
+            Slot(name="subject", type="NP", required=True),
+            Slot(name="verb", type="VP", required=True)
+        ],
+        constraints={
+            "function": "object",
+        },
+        semantic_class="choice",
+        available=True  # M3c5 开放
+    ),
 ]
 
 

@@ -45,7 +45,8 @@ NP_RULES: List[ExpansionKind] = [
 
 VP_RULES: List[ExpansionKind] = [
     "adverb",
-    "adverbial_clause",         # L3(available=False)
+    "adverbial_clause",         # L3(M3c4 开放)
+    "noun_clause",              # L3(M3c5 开放)
 ]
 
 ADJP_RULES: List[ExpansionKind] = [
@@ -80,7 +81,7 @@ KIND_METADATA: Dict[str, Dict[str, object]] = {
     "infinitive_phrase":    {"label_cn": "不定式",   "level": 2, "available": False},
     "relative_clause":      {"label_cn": "定语从句", "level": 3, "available": True},  # M3c3 开放
     "adverbial_clause":     {"label_cn": "状语从句", "level": 3, "available": True},  # M3c4 开放
-    "noun_clause":          {"label_cn": "名词性从句", "level": 3, "available": False},
+    "noun_clause":          {"label_cn": "名词性从句", "level": 3, "available": True},  # M3c5 开放
 }
 
 
