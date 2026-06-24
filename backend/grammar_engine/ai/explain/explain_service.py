@@ -12,6 +12,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, ValidationError
 
+logger = logging.getLogger(__name__)
+
 
 class ExplainSource(str, Enum):
     AI = "ai"
@@ -56,6 +58,3 @@ def parse_response(raw: str) -> ExplainResponseModel:
     except (ValidationError, ValueError) as e:
         logger.warning(f"[AI] Parse failed: {e}")
         raise ParseFail(str(e))
-
-
-logger = logging.getLogger(__name__)
