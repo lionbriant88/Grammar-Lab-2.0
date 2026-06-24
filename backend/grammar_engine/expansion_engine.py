@@ -127,18 +127,64 @@ def _compose_preview(tpl: Any, head: str) -> str:
 def apply_template(phrase: Any, template: Any, sentence: str) -> str:
     """M3a+1:套模板到目标短语,返回新句。
 
-    M3c2 更新: 添加 ClauseTemplate 支持（占位，M3c3-5 完善）
+    M3c5 更新: 实现 L3 从句模板的拼装逻辑。
 
     形容词:插到 NP head 之前,所有已有 adj 之后。
+    从句:在句子末尾添加从句,占位槽位用默认值填充。
     """
-    # M3c2: 检测 ClauseTemplate（通过 hasattr 判断是否有 clause_type 属性）
+    # M3c5: 检测 ClauseTemplate（通过 hasattr 判断是否有 clause_type 属性）
     if hasattr(template, 'clause_type'):
-        # ClauseTemplate - M3c2 占位，M3c3-5 实现
-        # 目前所有 ClauseTemplate available=False，前端不会调用到这里
-        # M3c3: 实现定语从句拼装
-        # M3c4: 实现状语从句拼装
-        # M3c5: 实现名词性从句拼装
-        return sentence  # M3c2 占位：不做任何改变
+        # ClauseTemplate - 实现拼装逻辑
+        from .clause_realizer import get_realizer, RealizationContext
+        from .nlp_loader import nlp_loader
+
+        # 默认槽位填充值（演示用）
+        default_slot_values = _get_default_slot_values(template, phrase, sentence)
+
+        # 使用 Realizer 拼装从句
+        try:
+            realizer = get_realizer(template.clause_type)
+            # Mock context (完整实现需要传入实际 context)
+            nlp = nlp_loader.get()
+            doc = nlp(sentence)
+            context = RealizationContext(
+                original_sentence=sentence,
+                doc=doc,
+                phrases=[phrase],
+                target_phrase_id=phrase.id
+            )
+            clause_text = realizer.realize(template, default_slot_values, context)
+        except Exception as e:
+            # Realizer 失败时使用简单拼接
+            clause_text = _simple_clause_assembly(template, default_slot_values)
+
+        # 根据从句类型决定插入位置
+        clause_type = template.clause_type
+        if clause_type == "relative":
+            # 定语从句：紧跟 NP 之后
+            head = phrase.head_token_text
+            head_idx = sentence.find(head)
+            if head_idx < 0:
+                return sentence
+            insert_pos = head_idx + len(head)
+            return sentence[:insert_pos] + " " + clause_text + sentence[insert_pos:].lstrip()
+        elif clause_type == "adverbial":
+            # 状语从句：句末（before 句号）
+            if sentence.rstrip().endswith('.'):
+                insert_pos = sentence.rstrip().rfind('.')
+                return sentence[:insert_pos].rstrip() + " " + clause_text + "."
+            return sentence.rstrip() + " " + clause_text + "."
+        elif clause_type == "noun":
+            # 名词性从句：作宾语，紧跟 VP 之后
+            head = phrase.head_token_text
+            head_idx = sentence.find(head)
+            if head_idx < 0:
+                return sentence
+            insert_pos = head_idx + len(head)
+            # 简单地用 " head + ' ' + clause_text + ' ' + rest" 拼装
+            return sentence[:insert_pos] + " " + clause_text + " " + sentence[insert_pos:].lstrip()
+
+        return sentence
 
     if template.kind == "adjective":
         # 找 head 在原句中的字符位置
@@ -211,6 +257,58 @@ def apply_template(phrase: Any, template: Any, sentence: str) -> str:
         return new_sentence
 
     return sentence
+
+
+def _get_default_slot_values(template: Any, phrase: Any, sentence: str) -> Dict[str, str]:
+    """根据模板类型返回默认槽位值（M3c5 简化实现）。
+
+    为每个槽位提供合理的默认值，让用户看到从句模板能正常拼装。
+    完整实现需要前端 UI 让用户输入槽位值。
+    """
+    defaults: Dict[str, str] = {}
+    for slot in template.slots:
+        slot_name = slot.name
+        if slot_name == "subject":
+            defaults[slot_name] = "it"
+        elif slot_name == "verb":
+            # 根据从句类型选择更合适的默认动词
+            clause_type = getattr(template, "clause_type", "")
+            if clause_type == "relative":
+                defaults[slot_name] = "is good"
+            elif clause_type == "adverbial":
+                # 根据连词选择
+                surface = template.surface.lower()
+                if "because" in surface or "since" in surface:
+                    defaults[slot_name] = "is raining"
+                elif "when" in surface or "while" in surface or "after" in surface or "before" in surface:
+                    defaults[slot_name] = "happened"
+                elif "if" in surface or "unless" in surface or "as long as" in surface:
+                    defaults[slot_name] = "you want"
+                elif "although" in surface or "though" in surface or "even though" in surface:
+                    defaults[slot_name] = "it is hard"
+                else:
+                    defaults[slot_name] = "is true"
+            elif clause_type == "noun":
+                defaults[slot_name] = "is right"
+            else:
+                defaults[slot_name] = "is true"
+        else:
+            # 使用 Slot 的 default 字段
+            defaults[slot_name] = slot.default or f"<{slot_name}>"
+    return defaults
+
+
+def _simple_clause_assembly(template: Any, slot_values: Dict[str, str]) -> str:
+    """简单的从句拼装（M3c5 降级方案 - Realizer 失败时使用）。
+
+    直接用占位符替换，没有语法调整。
+    """
+    text = template.surface
+    for slot in template.slots:
+        placeholder = f"<{slot.name.upper()}>"
+        value = slot_values.get(slot.name, slot.default or "")
+        text = text.replace(placeholder, value)
+    return text
 
 
 def apply(sentence: str, phrase_id: str, template_id: str) -> Dict[str, Any]:
