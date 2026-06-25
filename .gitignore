@@ -48,3 +48,8 @@ env/
 
 # Git worktrees
 .worktrees/
+
+# Coverage reports
+coverage/
+backend/.coverage
+backend/htmlcov/
