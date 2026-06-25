@@ -1,7 +1,7 @@
 # Grammar Lab 开发进度
 
-> **最后更新:** 2026-06-24
-> **当前阶段:** 阶段 4 - AI Explain Layer ⏳（M4a+M4b 后端完成,M4c 前端进行中 Task 16-19 done,20-22 待做）
+> **最后更新:** 2026-06-25
+> **当前阶段:** 阶段 4 - AI Explain Layer ✅（M4a-M4d 全量交付 + 收尾 I2+M3+M5）
 
 ---
 
@@ -13,7 +13,7 @@
 | 1 | 时间轴分析功能 | ✅ 完成 | 2026-06-13 |
 | 2 | 句剖析分析功能 | ✅ 完成 | 2026-06-14 |
 | 3 | 句扩展分析功能 | ✅ 完成 (M3a → M3c5 全部完成) | 2026-06-24 |
-| 4 | AI Explain Layer | 🔨 进行中 (M4a ✅ M4b ✅ M4c 1/3 ✅ / M4c ⏳ M4d ⏳) | - |
+| 4 | AI Explain Layer | ✅ 完成 (M4a-M4d 全量交付) + 收尾 (I2+M3+M5) | 2026-06-25 |
 
 ---
 
@@ -458,6 +458,18 @@ Phase 2: 引入 Benepar 成分句法分析 + 助动词链完整性校验
 - **M3c5**(Phase 3): 开放名词性从句（10-12 个 that/whether/what/how 模板）
 - **阶段 4**: AI 模型集成
 
+---
+
+## ✅ 阶段 4 收尾: M4 Follow-ups (I2+M3+M5) — 2026-06-25
+
+M4 整分支审查后列出的 4 个 deferred follow-ups 中,本批次关闭 3 个:
+
+- ✅ **I2 (集成测)** — 新增 `backend/tests/integration/test_m4_full_flow.py`(4 条 in-process,TestClient 模式) + `src/renderer/__integration__/explain_flow.test.tsx`(3 条跨组件 Vitest)
+- ✅ **M3 (@ts-ignore 清理)** — 新增 `src/types/electron-api.d.ts` ambient 声明,删除 `ExplainPanel.tsx:51` 与 `healthStore.ts:15` 两处 `@ts-ignore`,修正 3 处测试文件 mock 写法
+- ✅ **M5 (worktree 清理)** — 移除 `feature-m3a-plus-1` worktree(已合并于 `30e02f3`)
+- ⏭️ **M6 (i18n)** — 留待阶段 5 独立处理
+
+**结果:** TypeScript 0 错误;前端 Vitest 43/43 通过(40 → 43);后端 pytest 全套回归不挂;`grep -r '@ts-ignore' src/` 为空;`git worktree list` 仅 main。
 
 ---
 
