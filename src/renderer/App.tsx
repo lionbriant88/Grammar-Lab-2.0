@@ -156,7 +156,7 @@ function App() {
       {/* M4c Task 23: scene + ExplainPanel side-by-side, collapse on small screens */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4 h-full">
         <div className="min-w-0">{renderScene()}</div>
-        <aside className="lg:sticky lg:top-0 lg:max-h-[calc(100vh-1rem)] lg:overflow-y-auto">
+        <aside data-testid="explain-panel" className="lg:sticky lg:top-0 lg:max-h-[calc(100vh-1rem)] lg:overflow-y-auto">
           <ExplainPanel selection={selection} sentence={currentSentence} darkMode={darkMode} />
         </aside>
       </div>
@@ -180,6 +180,7 @@ function App() {
       </button>
       <button
         type="button"
+        data-testid="history-button"
         onClick={() => setHistoryOpen(true)}
         className="fixed top-3 right-3 z-50 p-1 px-2 rounded bg-white/80 dark:bg-slate-800/80 shadow text-sm"
         aria-label="Open history"

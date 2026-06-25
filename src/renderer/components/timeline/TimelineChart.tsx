@@ -88,6 +88,7 @@ export default function TimelineChart({ nodes, darkMode, onNodeClick, selectedNo
           return (
             <button
               key={node.verb_id}
+              data-testid="timeline-verb"
               onClick={() => onNodeClick(node.verb_id)}
               onMouseEnter={() => setHoveredNodeId(node.verb_id)}
               onMouseLeave={() => setHoveredNodeId(null)}

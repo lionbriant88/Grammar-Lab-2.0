@@ -30,6 +30,7 @@ export function ExplainHistoryDrawer({ open, onClose, onSelect, darkMode }: Prop
     <>
       <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
       <div
+        data-testid="history-drawer"
         className={`fixed right-0 top-0 h-full w-80 shadow-xl z-50 overflow-y-auto ${
           darkMode ? 'bg-slate-800 text-slate-100' : 'bg-white'
         }`}

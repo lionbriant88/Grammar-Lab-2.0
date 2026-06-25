@@ -132,6 +132,7 @@ export function ExplainPanel({ selection, sentence, darkMode }: Props) {
 
       <div className="flex items-center gap-2">
         <button
+          data-testid="pin-button"
           onClick={() => setPinned((p) => !p)}
           className={pinned ? 'pin-active' : 'pin-inactive'}
           title={pinned ? '取消 Pin' : 'Pin 当前解释'}
