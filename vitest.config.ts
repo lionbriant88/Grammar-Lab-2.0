@@ -13,6 +13,8 @@ export default defineConfig({
       '**/dist/**',
       '**/.{idea,git,cache,output,temp}/**',
       '.worktrees/**',
+      // E2E specs are Playwright, not vitest — run via `npm run e2e`
+      'e2e/**',
     ],
     coverage: {
       provider: 'v8',
@@ -22,6 +24,7 @@ export default defineConfig({
         '**/dist/**',
         '**/.{idea,git,cache,output,temp}/**',
         '.worktrees/**',
+        'e2e/**',
         // M3a orphan: 50-step history features incomplete on main, full coverage lands with feature/m3a-plus-1 merge
         'src/renderer/state/**',
         // Test files

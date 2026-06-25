@@ -20,7 +20,7 @@ export interface ExplainResult {
 }
 
 export interface ExplainContext {
-  scene: 'timeline' | 'anatomy' | 'expand';
+  scene: 'timeline' | 'anatomy' | 'expansion';
   input_sentence: string;
   selected_node_id: string;
   node_type: NodeType;

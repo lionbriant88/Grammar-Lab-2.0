@@ -1,10 +1,19 @@
 import type { ExplainContext } from '../../types/explain';
 import type { NodeType, SelectionEvent, SceneType } from '../../types/selection';
 
+// UI tab name → backend contract key
+// 前端 SceneType 用 'expand'(用户视角的 tab 名)
+// 后端 prompt_templates / fallback_explanations 用 'expansion'
+const SCENE_TO_BACKEND: Record<SceneType, 'timeline' | 'anatomy' | 'expansion'> = {
+  timeline: 'timeline',
+  anatomy: 'anatomy',
+  expand: 'expansion',
+};
+
 export class ExplainContextBuilder {
   build(event: SelectionEvent, sentence: string): ExplainContext {
     return {
-      scene: event.scene,
+      scene: SCENE_TO_BACKEND[event.scene],
       input_sentence: sentence,
       selected_node_id: event.node.id,
       node_type: event.node.type,

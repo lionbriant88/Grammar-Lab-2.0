@@ -54,8 +54,24 @@ describe('ExplainContextBuilder', () => {
       },
       'I have a dog.',
     );
-    expect(ctx.scene).toBe('expand');
+    // M4d fix: UI scene 'expand' maps to backend contract 'expansion'
+    expect(ctx.scene).toBe('expansion');
     expect(ctx.node_type).toBe('template');
+  });
+
+  it("translates 'expand' SelectionEvent to 'expansion' ExplainContext", () => {
+    const ctx = builder.build(
+      {
+        scene: 'expand',
+        node: {
+          id: 't1',
+          type: 'template',
+          data: { template_id: 'adj-1', surface: 'cute', kind: 'adjective' },
+        },
+      },
+      'I have a dog.',
+    );
+    expect(ctx.scene).toBe('expansion');
   });
 
   it('builds context for validation warning', () => {

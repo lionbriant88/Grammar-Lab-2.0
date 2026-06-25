@@ -193,7 +193,9 @@ function App() {
         onClose={() => setHistoryOpen(false)}
         onSelect={(item) =>
           setSelection({
-            scene: item.context.scene,
+            // ExplainContext.scene uses backend contract key ('expansion');
+            // map back to UI SceneType ('expand') for the SelectionEvent.
+            scene: (item.context.scene === 'expansion' ? 'expand' : item.context.scene) as SceneType,
             node: {
               id: item.context.selected_node_id,
               type: item.context.node_type,
