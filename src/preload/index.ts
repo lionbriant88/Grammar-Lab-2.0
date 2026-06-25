@@ -13,7 +13,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('dark-mode-changed', (_event, isDark: boolean) => {
       callback(isDark);
     });
-  }
+  },
+  explainNode: (ctx: any) => ipcRenderer.invoke('explain-node', ctx),
+  getExplainHealth: () => ipcRenderer.invoke('explain-health'),
 });
 
 // 类型声明
@@ -25,6 +27,8 @@ export interface ElectronAPI {
   speakText: (text: string) => Promise<{ success: boolean }>;
   copyToClipboard: (text: string) => Promise<{ success: boolean }>;
   onDarkModeChange: (callback: (isDark: boolean) => void) => void;
+  explainNode: (ctx: any) => Promise<{ success: boolean; data?: any; error?: string }>;
+  getExplainHealth: () => Promise<{ success: boolean; data?: any; error?: string }>;
 }
 
 declare global {

@@ -3,6 +3,21 @@ import { ipcMain } from 'electron';
 const BACKEND_URL = 'http://127.0.0.1:18765';
 const ANALYZE_TIMEOUT = 5000;
 
+const BUILTIN_FALLBACK_RESULT = {
+  title: '解释',
+  summary: 'AI 暂不可用。',
+  why: '请检查后端服务是否运行,或 AI provider 是否配置。',
+  example: '',
+  common_mistakes: [],
+  tips: [],
+  source: 'fallback',
+  provider: 'builtin',
+  model: 'builtin',
+  prompt_version: 'M4a_v1',
+  cached: false,
+  generated_at: new Date().toISOString(),
+};
+
 export function registerIpcHandlers() {
   // 分析句子
   ipcMain.handle('analyze-sentence', async (_event, sentence: string) => {
@@ -222,5 +237,48 @@ export function registerIpcHandlers() {
     const { clipboard } = require('electron');
     clipboard.writeText(_text);
     return { success: true };
+  });
+
+  // M4: AI explain
+  ipcMain.handle('explain-node', async (_event, ctx) => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 35_000);
+
+      const response = await fetch(`${BACKEND_URL}/api/explain`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ctx),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        // /api/explain 理论上不会 4xx/5xx,这里兜底
+        return {
+          success: true,
+          data: { ok: true, degraded: true, result: BUILTIN_FALLBACK_RESULT },
+        };
+      }
+      return { success: true, data: await response.json() };
+    } catch (error) {
+      return {
+        success: true,
+        data: { ok: true, degraded: true, result: BUILTIN_FALLBACK_RESULT },
+      };
+    }
+  });
+
+  ipcMain.handle('explain-health', async () => {
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/explain/health`);
+      if (!r.ok) {
+        return { success: false, error: `HTTP ${r.status}` };
+      }
+      return { success: true, data: await r.json() };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   });
 }
