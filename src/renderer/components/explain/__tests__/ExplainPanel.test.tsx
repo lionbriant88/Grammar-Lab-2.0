@@ -180,6 +180,110 @@ describe('ExplainPanel', () => {
     expect(screen.getByText(/boom/i)).toBeInTheDocument();
   });
 
+  it('aborts in-flight request when selection changes rapidly (AbortController + request_id double-safety)', async () => {
+    // First selection: slow IPC call that never resolves (simulates node A pending).
+    // Second selection: fast IPC call returning a result (simulates node B).
+    // The slow call's setState must be skipped so the second result wins.
+    let resolveSlow: ((v: any) => void) | null = null;
+    const slowPromise = new Promise<any>((resolve: (v: any) => void) => {
+      resolveSlow = resolve;
+    });
+    mockExplainNode.mockImplementationOnce(() => slowPromise);
+    mockExplainNode.mockResolvedValueOnce({
+        success: true,
+        data: {
+          ok: true,
+          degraded: false,
+          result: {
+            title: 'Second Selection Title',
+            summary: 'B',
+            why: 'B',
+            example: '',
+            common_mistakes: [],
+            tips: [],
+            source: 'ai',
+            provider: 'ollama',
+            model: 'llama3.1:8b',
+            prompt_version: 'M4a_v1',
+            cached: false,
+            generated_at: new Date().toISOString(),
+          },
+        },
+      });
+
+    const { rerender } = render(
+      <ExplainPanel
+        selection={{
+          scene: 'timeline',
+          node: { id: 'n1', type: 'tense', data: { verb: 'have lived' } },
+        }}
+        sentence="I have lived here."
+        darkMode={false}
+      />,
+    );
+
+    // Loading skeleton appears for the first (slow) request.
+    await waitFor(() => {
+      expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
+    });
+    expect(mockExplainNode).toHaveBeenCalledTimes(1);
+
+    // User clicks another node: re-render with a new selection. The previous
+    // AbortController is aborted, request_id is bumped, and a new IPC call fires.
+    rerender(
+      <ExplainPanel
+        selection={{
+          scene: 'timeline',
+          node: { id: 'n2', type: 'tense', data: { verb: 'will go' } },
+        }}
+        sentence="I have lived here."
+        darkMode={false}
+      />,
+    );
+
+    // Second IPC was triggered.
+    await waitFor(() => {
+      expect(mockExplainNode).toHaveBeenCalledTimes(2);
+    });
+
+    // Second selection's result wins and renders.
+    await waitFor(() => {
+      expect(screen.getByText('Second Selection Title')).toBeInTheDocument();
+    });
+
+    // If the first (slow) call were to resolve AFTER the second, its setState
+    // must be skipped — the title must still be the second selection's.
+    const resolver = resolveSlow as ((v: any) => void) | null;
+    if (resolver) {
+      resolver({
+        success: true,
+        data: {
+          ok: true,
+          degraded: false,
+          result: {
+            title: 'First Selection Title',
+            summary: 'A',
+            why: 'A',
+            example: '',
+            common_mistakes: [],
+            tips: [],
+            source: 'ai',
+            provider: 'ollama',
+            model: 'llama3.1:8b',
+            prompt_version: 'M4a_v1',
+            cached: false,
+            generated_at: new Date().toISOString(),
+          },
+        },
+      });
+    }
+
+    // Give any microtask a chance to flush; the stale title must NOT appear.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText('First Selection Title')).not.toBeInTheDocument();
+    expect(screen.getByText('Second Selection Title')).toBeInTheDocument();
+  });
+
   it('toggles pinned state when pin button clicked', async () => {
     mockExplainNode.mockResolvedValue({
       success: true,
