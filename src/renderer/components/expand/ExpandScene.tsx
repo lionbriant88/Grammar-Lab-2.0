@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { SentenceAnalysis, PhraseNodeInfo } from '../../types';
+import type { SelectionEvent } from '../../types/selection';
 import ExtensionLibrary from './ExtensionLibrary';
 import SentenceCanvas from './SentenceCanvas';
 import ExpansionInspector from './ExpansionInspector';
@@ -19,6 +20,8 @@ export interface ExpandSceneProps {
   onSelectVersion: (versionId: string) => void;  // M3a+1.3:点击 timeline 节点
   isAnalyzing: boolean;
   error: string | null;
+  // M4c Task 23: passed in by App.tsx; wired by Task 24
+  onSelectNode?: (sel: SelectionEvent) => void;
 }
 
 export default function ExpandScene({

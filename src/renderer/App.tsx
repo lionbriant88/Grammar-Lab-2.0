@@ -3,7 +3,11 @@ import MainLayout from './components/layout/MainLayout';
 import TimelineScene from './components/timeline/TimelineScene';
 import AnatomyScene from './components/anatomy/AnatomyScene';
 import ExpandScene from './components/expand/ExpandScene';
+import { ExplainPanel } from './components/explain/ExplainPanel';
+import { ExplainHistoryDrawer } from './components/explain/ExplainHistoryDrawer';
+import { useHealthStore } from './stores/healthStore';
 import type { SceneType } from './types';
+import type { SelectionEvent } from './types/selection';
 import { useAppState } from './state/appState';
 
 function App() {
@@ -11,6 +15,10 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [inputText, setInputText] = useState('I usually get up at seven every morning.');
   const [state, actions] = useAppState();
+  // M4c Task 23: shared selection state across scenes → ExplainPanel
+  const [selection, setSelection] = useState<SelectionEvent | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const { health, refresh: refreshHealth } = useHealthStore();
 
   useEffect(() => {
     if (darkMode) {
@@ -60,6 +68,16 @@ function App() {
     }
   }, [activeScene, state.currentAnalysis, actions]);
 
+  // M4c Task 23: kick off health check on mount + every 5 min
+  useEffect(() => {
+    refreshHealth();
+    const t = setInterval(refreshHealth, 5 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [refreshHealth]);
+
+  // M4c Task 23: sentence for ExplainPanel (used as context input_sentence)
+  const currentSentence = state.currentAnalysis?.sentence ?? '';
+
   const handleAnalyze = () => {
     actions.analyzeSentence(inputText);
     if (activeScene === 'anatomy') {
@@ -73,7 +91,7 @@ function App() {
   const renderScene = () => {
     switch (activeScene) {
       case 'timeline':
-        return <TimelineScene analysis={state.currentAnalysis} darkMode={darkMode} />;
+        return <TimelineScene analysis={state.currentAnalysis} darkMode={darkMode} onSelectNode={setSelection} />;
       case 'anatomy':
         return (
           <AnatomyScene
@@ -82,6 +100,7 @@ function App() {
             onAnalyzeAnatomy={(s) => actions.analyzeAnatomy(s)}
             isAnalyzing={state.isLoading}
             error={state.error}
+            onSelectNode={setSelection}
           />
         );
       case 'expand':
@@ -112,10 +131,11 @@ function App() {
             expansionHistory={state.expansionHistory}
             isAnalyzing={state.isLoading}
             error={state.error}
+            onSelectNode={setSelection}
           />
         );
       default:
-        return <TimelineScene analysis={state.currentAnalysis} darkMode={darkMode} />;
+        return <TimelineScene analysis={state.currentAnalysis} darkMode={darkMode} onSelectNode={setSelection} />;
     }
   };
 
@@ -133,7 +153,55 @@ function App() {
         actions.clearAnalysis();
       }}
     >
-      {renderScene()}
+      {/* M4c Task 23: scene + ExplainPanel side-by-side, collapse on small screens */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4 h-full">
+        <div className="min-w-0">{renderScene()}</div>
+        <aside className="lg:sticky lg:top-0 lg:max-h-[calc(100vh-1rem)] lg:overflow-y-auto">
+          <ExplainPanel selection={selection} sentence={currentSentence} darkMode={darkMode} />
+        </aside>
+      </div>
+
+      {/* M4c Task 23: floating health LED + history button (Header not modified) */}
+      <button
+        type="button"
+        title={`${health.provider || ''} / ${health.model || ''} (${health.status})`}
+        className="fixed top-3 right-16 z-50 p-1 rounded bg-white/80 dark:bg-slate-800/80 shadow"
+        aria-label="AI health status"
+      >
+        <span
+          className={
+            health.status === 'ready' ? 'bg-green-500' :
+            health.status === 'degraded' ? 'bg-yellow-500' :
+            health.status === 'offline' ? 'bg-red-500' :
+            'bg-slate-400'
+          }
+          style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%' }}
+        />
+      </button>
+      <button
+        type="button"
+        onClick={() => setHistoryOpen(true)}
+        className="fixed top-3 right-3 z-50 p-1 px-2 rounded bg-white/80 dark:bg-slate-800/80 shadow text-sm"
+        aria-label="Open history"
+      >
+        🕘 History
+      </button>
+
+      <ExplainHistoryDrawer
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        onSelect={(item) =>
+          setSelection({
+            scene: item.context.scene,
+            node: {
+              id: item.context.selected_node_id,
+              type: item.context.node_type,
+              data: item.context.selected_node,
+            },
+          })
+        }
+        darkMode={darkMode}
+      />
     </MainLayout>
   );
 }

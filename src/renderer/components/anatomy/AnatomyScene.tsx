@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { SentenceAnalysis, AnatomyChunk, ChunkRole } from '../../types';
+import type { SelectionEvent } from '../../types/selection';
 import { getRoleLabel } from '../../utils/roleColor';
 import ChunkBlocks, { type EditableChunk } from './ChunkBlocks';
 import EditToolbar from './EditToolbar';
@@ -11,6 +12,8 @@ export interface AnatomySceneProps {
   onAnalyzeAnatomy: (sentence: string) => void;
   isAnalyzing: boolean;
   error: string | null;
+  // M4c Task 23: passed in by App.tsx; wired by Task 24
+  onSelectNode?: (sel: SelectionEvent) => void;
 }
 
 /** 后端 AnatomyChunk → 可编辑 EditableChunk(把 text 拆成词) */

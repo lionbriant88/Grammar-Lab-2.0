@@ -3,10 +3,13 @@ import TimelineChart from './TimelineChart';
 import VerbDetailCard from './VerbDetailCard';
 import TimeAdverbialList from './TimeAdverbialList';
 import type { SentenceAnalysis } from '../../types';
+import type { SelectionEvent } from '../../types/selection';
 
 interface TimelineSceneProps {
   analysis: SentenceAnalysis | null;
   darkMode: boolean;
+  // M4c Task 23: passed in by App.tsx; wired by Task 24
+  onSelectNode?: (sel: SelectionEvent) => void;
 }
 
 export default function TimelineScene({ analysis, darkMode }: TimelineSceneProps) {
