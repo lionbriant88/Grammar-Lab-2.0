@@ -33,6 +33,7 @@ export default function AnatomyScene({
   onAnalyzeAnatomy,
   isAnalyzing,
   error,
+  onSelectNode,
 }: AnatomySceneProps) {
   const backend = analysis?.anatomy?.backend;
 
@@ -227,7 +228,22 @@ export default function AnatomyScene({
         darkMode={darkMode}
         isEditing={isEditing}
         selectedId={selectedId}
-        onSelectChunk={setSelectedId}
+        onSelectChunk={(chunkId) => {
+          setSelectedId(chunkId);
+          if (chunkId) {
+            const chunk = workingChunks.find((c) => c.id === chunkId);
+            if (chunk) {
+              onSelectNode?.({
+                scene: 'anatomy',
+                node: {
+                  id: chunk.id,
+                  type: 'phrase',
+                  data: { text: chunk.words.join(' '), role: chunk.role, head: chunk.label },
+                },
+              });
+            }
+          }
+        }}
         onMoveWord={handleMoveWord}
       />
 

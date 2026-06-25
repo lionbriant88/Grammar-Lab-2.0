@@ -12,7 +12,7 @@ interface TimelineSceneProps {
   onSelectNode?: (sel: SelectionEvent) => void;
 }
 
-export default function TimelineScene({ analysis, darkMode }: TimelineSceneProps) {
+export default function TimelineScene({ analysis, darkMode, onSelectNode }: TimelineSceneProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   // 获取后端数据
@@ -84,7 +84,20 @@ export default function TimelineScene({ analysis, darkMode }: TimelineSceneProps
         <TimelineChart
           nodes={timelineNodes}
           darkMode={darkMode}
-          onNodeClick={setSelectedNodeId}
+          onNodeClick={(verbId) => {
+            setSelectedNodeId(verbId);
+            const verb = verbs.find((v) => v.id === verbId);
+            if (verb) {
+              onSelectNode?.({
+                scene: 'timeline',
+                node: {
+                  id: `verb-${verbId}`,
+                  type: 'tense',
+                  data: { verb: verb.surface, tense: verb.tense, position: verb.span[0] },
+                },
+              });
+            }
+          }}
           selectedNodeId={selectedNodeId || undefined}
         />
       </div>

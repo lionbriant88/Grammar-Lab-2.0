@@ -6,6 +6,8 @@ export interface ExpansionInspectorProps {
   phrase: PhraseNodeInfo | null;
   darkMode: boolean;
   onApply: (templateId: string) => void;
+  /** M4c Task 24: emit SelectionEvent when a template chip is clicked */
+  onSelectTemplate?: (template: ExpansionTemplateInfo, kind: string) => void;
   isApplying: boolean;
 }
 
@@ -13,7 +15,7 @@ export interface ExpansionInspectorProps {
  * 画布下方固定面板(替代 M3a 浮层 ExtensionMenu)。
  * Accordion 分组,chip 即应用,不弹二次确认。
  */
-export default function ExpansionInspector({ phrase, darkMode, onApply, isApplying }: ExpansionInspectorProps) {
+export default function ExpansionInspector({ phrase, darkMode, onApply, onSelectTemplate, isApplying }: ExpansionInspectorProps) {
   if (!phrase) {
     return (
       <div
@@ -60,6 +62,7 @@ export default function ExpansionInspector({ phrase, darkMode, onApply, isApplyi
               isApplying={isApplying}
               quotaReached={reached}
               onApply={onApply}
+              onSelectTemplate={onSelectTemplate}
             />
           );
         })}
@@ -79,12 +82,14 @@ function KindAccordion({
   isApplying,
   quotaReached,
   onApply,
+  onSelectTemplate,
 }: {
   candidate: ExpansionCandidate;
   darkMode: boolean;
   isApplying: boolean;
   quotaReached: boolean;
   onApply: (templateId: string) => void;
+  onSelectTemplate?: (template: ExpansionTemplateInfo, kind: string) => void;
 }) {
   const [open, setOpen] = useState(candidate.available && !quotaReached);
   const available = candidate.available;
@@ -134,7 +139,10 @@ function KindAccordion({
                   template={t}
                   darkMode={darkMode}
                   disabled={isApplying || quotaReached}
-                  onClick={() => onApply(t.template_id)}
+                  onClick={() => {
+                    onSelectTemplate?.(t, candidate.kind);
+                    onApply(t.template_id);
+                  }}
                 />
               ))}
             </div>

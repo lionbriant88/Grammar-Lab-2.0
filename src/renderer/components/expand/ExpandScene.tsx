@@ -36,6 +36,7 @@ export default function ExpandScene({
   expansionHistory,  // M3a+1.3
   isAnalyzing,
   error,
+  onSelectNode,
 }: ExpandSceneProps) {
   const backend = analysis?.expansion?.backend;
 
@@ -104,7 +105,24 @@ export default function ExpandScene({
           <h3 className="font-bold mb-2">分析警告</h3>
           <ul className="list-disc list-inside text-sm space-y-1">
             {backend.warnings.map((w, i) => (
-              <li key={i}>{w}</li>
+              <li key={i}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSelectNode?.({
+                      scene: 'expand',
+                      node: {
+                        id: `warning-${i}`,
+                        type: 'validation_warning',
+                        data: { warning: w, rule: w, span: [] },
+                      },
+                    })
+                  }
+                  className="text-left hover:underline cursor-pointer"
+                >
+                  {w}
+                </button>
+              </li>
             ))}
           </ul>
         </div>
@@ -145,6 +163,16 @@ export default function ExpandScene({
             phrase={selectedPhrase}
             darkMode={darkMode}
             onApply={(templateId) => highlightedId && handleApply(highlightedId, templateId)}
+            onSelectTemplate={(template, kind) =>
+              onSelectNode?.({
+                scene: 'expand',
+                node: {
+                  id: template.template_id,
+                  type: 'template',
+                  data: { template_id: template.template_id, surface: template.surface, kind },
+                },
+              })
+            }
             isApplying={isApplying}
           />
         </div>
