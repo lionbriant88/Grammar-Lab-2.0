@@ -1,4 +1,4 @@
-"""M4 — /api/exexplain 端点 in-process 集成测。
+"""M4 — /api/explain 端点 in-process 集成测。
 
 Unlike backend/tests/integration/test_m4_api.py (which hits a live server
 and skips if the service is not running), this file exercises the FastAPI
@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 
 from app import app
 import app as app_module
-from grammar_engine.ai.explain.models import ExplainResult, ExplainSource
+from grammar_engine.ai.explain.models import ExplainSource
 
 
 @pytest.fixture
