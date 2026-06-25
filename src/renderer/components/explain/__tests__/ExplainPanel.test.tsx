@@ -9,10 +9,14 @@ const mockGetHealth = vi.fn();
 beforeEach(() => {
   mockExplainNode.mockReset();
   mockGetHealth.mockReset();
-  (window as any).electronAPI = {
-    explainNode: mockExplainNode,
-    getExplainHealth: mockGetHealth,
-  };
+  // Per-test override of the ambient electronAPI.
+  // `Test only` methods: explainNode + getExplainHealth.
+  Object.assign(window, {
+    electronAPI: {
+      explainNode: mockExplainNode,
+      getExplainHealth: mockGetHealth,
+    },
+  });
 });
 
 describe('ExplainPanel', () => {

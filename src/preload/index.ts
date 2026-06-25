@@ -31,8 +31,3 @@ export interface ElectronAPI {
   getExplainHealth: () => Promise<{ success: boolean; data?: any; error?: string }>;
 }
 
-declare global {
-  interface Window {
-    electronAPI: ElectronAPI;
-  }
-}

@@ -48,7 +48,6 @@ export function ExplainPanel({ selection, sentence, darkMode }: Props) {
     async (sel: SelectionEvent, signal: AbortSignal) => {
       const ctx = builder.build(sel, sentence);
       try {
-        // @ts-ignore — electronAPI 由 preload 注入
         const r = await window.electronAPI.explainNode(ctx);
         if (signal.aborted) return;
         if (r?.success && r.data) {

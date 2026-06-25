@@ -5,9 +5,12 @@ const mockGetExplainHealth = vi.fn();
 
 beforeEach(() => {
   mockGetExplainHealth.mockReset();
-  (window as any).electronAPI = {
-    getExplainHealth: mockGetExplainHealth,
-  };
+  // Per-test override of the ambient electronAPI.
+  Object.assign(window, {
+    electronAPI: {
+      getExplainHealth: mockGetExplainHealth,
+    },
+  });
   // Reset store to initial state
   useHealthStore.setState({ health: { status: 'unknown' } });
 });

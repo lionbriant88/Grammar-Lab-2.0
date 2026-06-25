@@ -12,7 +12,6 @@ export const useHealthStore = create<HealthStore>((set) => ({
   setHealth: (h) => set({ health: h }),
   refresh: async () => {
     try {
-      // @ts-ignore — electronAPI 由 preload 注入
       const r = await window.electronAPI.getExplainHealth();
       if (r?.success && r.data?.available) {
         set({
